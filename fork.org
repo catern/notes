@@ -8,14 +8,14 @@ The bad process API of Linux is shared with all the other Unix-like systems, whi
 In this article, though, I'll just be talking about Linux.
 
 Here, when I say "process API", I am talking about the interface
-for starting processes running,
+for initiating processes,
 monitoring processes until they exit,
-and stopping process that haven't yet exited.
+and stopping processes that haven't yet exited.
 
 So what is so bad about the Linux process API?
 
 - It makes it easy for processes to "leak", and linger on the system without anyone to force them to exit.
-- Conversely, it makes it /impossible/ (without root) to guarantee that a buggy process has not leaked children.
+- Conversely, it makes it /impossible/ (without root) to guarantee that a buggy process has not leaked children.  /Did you mean leaking children or leaking data *to* children?/
 - It uses global process identifiers (pids) instead of a secure unforgeable identifier, making it possible to confuse one process for another.
 - It uses signals to communicate process events, making libraries (which can't safely handle signals) unable to spawn processes, as well as inheriting all the other problems of Unix signals.
 
@@ -27,18 +27,24 @@ At the end of the article, I'll go over my own solution and how it solves all of
 
 What do I mean by "leak a process"?
 
+/I'm fairly sure that's more like the description of an orphaned process and the previous use of the term could apply to any number of things./
+
 I mean causing a process to be run without someone noting down the pid of that process,
 so that process can not be found and killed.
 
 Once a process has been leaked,
-and you no longer have its pid or any other means to kill it,[fn:process_groups]
+and you no longer have its pid or any other means to kill it,[fn:process_groups] /Yeah, that's usually either a process hang or an orphaned process, sometimes both.  Whereas the term leak generally refers to either or both of a memory leak or some other data leak (and since most of these things were written in C, more often than not it'll be malloc)./
 you either have to hope that it will exit on its own,
 or manually look at what processes are running on the system and guess which ones are no longer needed.
 
-How, exactly, does this happen?
+/Or run: killall -9 $NAME_OF_EXECUTABLE/
+
+How, exactly, does this happen?  /Someone let Mozilla developers near the stack?  Sorry, couldn't resist .../
 The simplest way is when process A, starts process B, which starts process C.
 If process B then exits without killing process C or somehow telling process A about C,
 process C will be leaked.[fn:easyleakexample]
+
+/It'll be *orphaned*, but C may still dump data or its own state out to unknown parts of the system when it reaches a point where it was supposed to send data or a response back to B.  At that point it would also be *leaking*./
 
 ** How not to fix
 *** Make sure B always cleans up on exit and kills C
@@ -90,12 +96,14 @@ Are we going to convert every Unix program in existence to report back the proce
 Perhaps if some technique for reporting started processes was established back when Unix was first created,
 that might be an acceptable solution, if ultimately flawed due to the existence of bugs and race conditions.
 
-But it's now been 40 years since the creation of Unix,
+But it's now been 40 years since the creation of Unix,  /Closer to 50./
 and rewriting every Unix program unfortunately is sadly not workable.
 *** A should run B inside a container
 If A runs B inside a container,
 then no matter how many processes B starts,
 A will be able to terminate them all by just stopping the container, and we'll be fine.
+
+/A JVM is not the solution here, especially with code implemented at a low enough level that the only abstraction is just above assembly, there are many reasons for wanting to run on hardware./
 
 This has four main flaws for solving the problem of making it easy to avoid leaking.
 
@@ -107,16 +115,22 @@ Python has no "container.run" function in its standard library,
 to start a subprocess inside a container,
 and in the current container landscape that seems unlikely to change.
 
+/The standard Python installation is CPython; modules written in C (some in Python itself), so this just passes the buck./
+
 Shell scripts make starting processes trivial,
 but it's almost unthinkable that, say, bash, would integrate functionality for starting containers,
 so that every process is started in a container.
 Leaving aside the issues of which container technology to use,
 it would be quite complex to implement.
 
+/You're moving further up the stack, anything lower than this point will be outside the contair./
+
 Flaw two is that it requires root privileges.
 The syscalls required to start a Linux container require you to have root.
 There are ways to get around this in recent Linux kernels[fn:user_namespaces],
 but they are pretty dubious from a security perspective.
+
+/Ah yes, the systemd thing, not great .../
 
 Flaw three is that it's not trivially nestable.
 What if I have a hierarchy of 5 processes, ABCDE, each starting the next one in the chain?
@@ -126,6 +140,8 @@ but nesting containers is still tricky business that can cause breakage.
 Flaw four is that it's pretty heavyweight to require literally every child process to run in a separate container.
 Containers are heavier than normal processes,
 and this will place a real burden on the system.
+
+/No shit, sherlock!  ;)/
 
 So, running every child process in a separate container isn't a viable solution.
 We still have no way to easily prevent child processes from leaking.
@@ -140,6 +156,8 @@ A process can fork repeatedly to make a thousand copies of itself,
 or just fork constantly at all times, leaving the previous processes to immediately exit,
 so that its pid is constantly changing and the latest copy can't be identified and sent a signal.
 A "fork bomb" is an example of an attack of this kind.
+
+/Oldest DoS in the book./
 
 But note that this doesn't have to be the result of an attack;
 simple buggy code can cause this.
@@ -156,6 +174,8 @@ Most of our earlier concerns (it's too hard, it's heavyweight, and it's not triv
 no longer apply,
 because in this section we're happy to have any means at all to prevent the attack.
 
+/To an extent, it's still running on another system which could suffer the same fate./
+
 However,
 it still requires root access to a run a container or a virtual machine.
 So this solution is not truly general purpose;
@@ -165,7 +185,12 @@ because our application certainly should not run with root access in the normal 
 We can partially get around the need for root access
 by having a privileged daemon start processes on our behalf inside a container.[fn:systemd-run]
 
+/Linux already has this ... it's called systemd .../
+
 But having someone else start a process on our behalf breaks a lot of traditional Unix features.
+
+/Not so, there are plenty of programs which launch as root and subsequently  transfer ownership of the process to some dedicated user.  The Apache httpd server is usually a good example of this (and also of a service that often has failing or abandoned processes when network connections fail./
+
 For example, we can't easily have our child process inherit stdin/stdout/stderr from us,
 nor will it inherit environment variables or any ulimits we've placed on ourself.
 The shell, among other applications, is completely dependent on these features.
@@ -176,6 +201,8 @@ What if we limit the number of processes that can exist on the system?
 Then as the process keeps forking,
 it will eventually fill up all the available processes,
 and we'll be able to kill it.
+
+/No you won't, if you run out of available processes you won't be able to do anything and the system will freeze./
 
 The number of processes that can exist is actually already limited;
 there's a maximum pid, and we can't have any more processes than that.
@@ -211,6 +238,11 @@ Typically, a long-lived process (a "daemon") would write its own pid into a file
 Then other processes could send signals to the daemon by reading that pidfile and using "kill".
 
 But there is absolutely not guarantee that when you "kill", you are sending a signal to the right process.
+
+/Yeah, there is: DTrace./
+/However DTrace is not (yet) available for Linux, but it's author made this instead:/ [[http://www.brendangregg.com/blog/2016-10-27/dtrace-for-linux-2016.html][DTrace for Linux 2016]]
+/In add ition to that (possibly in response to it, but more likely to meet a need with RHEL servers running Oracle db), Oracle finally released DTrace under the GPLv2 last August and a Linux port was launched the following month:/ [[https://github.com/dtrace4linux/linux][DTrace for Linux]]
+
 If the daemon has exited,
 and enough processes have started and stopped since then,
 the pid in the daemon's pidfile might point to a completely unrelated process.
@@ -227,6 +259,8 @@ Then we wouldn't have race conditions when we try to kill them.
 This would work,
 but it would be difficult to retrofit onto an existing Unix system:
 Many systems assume that pids are the same size as ints.
+
+/No it wouldn't.  PIDs are integers for a reason, it's a very simple method of recording a numeric value, the same is true of base-2 (binary), base-8 (octal) and base-16 (hex).  Arguably our human base-10 is actually harder for a computer at the lower levels (which is why core dumps don't use integers).  You wouldn't be implementing UUIDs at a level low enough to be used by the OS at that point./
 
 We would also pay an efficiency cost.
 It would be unusual for an operating system to provide references to its internal structures with UUIDs,
@@ -301,6 +335,9 @@ This is a major inconvenience for both the library developer and the user.
     The issue is that multiple libraries want to handle the task of starting and monitoring children.
     Can't we just agree on a single standard library that abstracts over SIGCHLD,
     and have everyone use it?
+
+/I believe you may need to re-read a history of the UNIX operating systems, pay particular attention to the development of BSD vs. SysV./
+
     We can provide a file descriptor interface, which is increasingly standard on Linux,
     and is easy for libraries to use and monitor.
 
@@ -313,19 +350,36 @@ This is a major inconvenience for both the library developer and the user.
     This becomes even more tricky in high-level languages,
     because most languages already come with a higher-level API around spawning processes.
 
+/Yes, but they're intended to manage one program or class of programs, not the entire system and for very good reasons.  This is infeasible./
+
     Still, the idea of providing a file descriptor interface for starting and monitoring children is a good one.
+
+/It's cute, but naïve, sorry./
+/Process management is an absolutely essential and truly fundamental aspect of an operating system and there are good reasons for the kernel needing direct access.  Furthermore, what do you do when the very flaws you're attempting to circumvent elsewhere strike your API stack?/
+
     File descriptors can easily be integrated into an event loop.
     And a file descriptor can be monitored by a library without interfering with the rest of the program,
+
+/You can monitor things to your heart's content, but controlling the entire stack entirely from somewhere within that same stack ... is not going to run and for the same reasons that builders start with the foundations and work upward, they need that to get up./
+
+
     using a library's own private event loop or other mechanisms.
     We just need a way to provide that interface that does not interfere with other libraries in the same process.
+
+/So to avoid /orphaned processes, now you want to deliberately combine them?/
+
 * How to fix all these problems
   Use my wrapper program, [[https://github.com/catern/supervise][supervise]],
   and its associated [[https://github.com/catern/supervise/blob/master/python/supervise_api/supervise.py][Python library]]!
+
+/Oh dear ... Okay, it's a bit too bloated now and stuffed to the gills with things that will confuse the hell out of you.  I recommend grabbing a copy of the Linux kernel from around '99 or 2000, something in the 2.2 range and just read through it and the in-line commentary.  Get an understanding of fundamental things like memory allocation and hardware control.  That underlying understanding will result in understanding why so much of this was just never going to fly./
 
   Essentially, we delegate the problem of starting and monitoring child processes
   to a small helper program: supervise.
 ** Problem: It's easy for processes to leak
    Solution: supervise kills all your descendant processes when you exit.
+
+/So you want a multi-threaded, multi-user system to automatically terminate all processes upon logout?  You're re-inventing DOS./
 
    supervise is passed a pipe to read instructions from on startup,
    and monitors that pipe throughout its (short and simple) lifetime.
@@ -341,6 +395,17 @@ This is a major inconvenience for both the library developer and the user.
    if process A set PR_SET_CHILD_SUBREAPER then process A will become the new parent of process C.
    This allows it to safely kill all descendant processes.
 ** Problem: It's impossible to prevent malicious processes leaks
+
+/No it's not. Mandatory Access Controls via a system which implements a system-wide set of policies which apply to programs, to rocesses, to users and so on.  It's a component of trusted computing systems and these have been implemented in Linux already./
+
+/I recommend having a look at these projects:/
+
+[[http://www.cs.utah.edu/flux/fluke/html/flask.html][Stephen Smalley's FLASK: Flux Advanced Security Kernel]][fn:1]
+[[https://github.com/SELinuxProject][SELinux Project]]
+[[https://www.nsa.gov/what-we-do/research/selinux/][NSA SELinux archival pages]]
+
+/Read up on trusted computing systems too./
+
    Solution: supervise kills all your descendant processes when you exit, securely and in a guaranteed-to-terminate way.
 
    It does this using the technique mentioned in the "Limit the number of processes that can exist on the system" section.
@@ -384,8 +449,17 @@ This is a major inconvenience for both the library developer and the user.
   Hopefully, if supervise proves useful enough in userspace,
   it can be implemented in the kernel,
   and the hacky userspace implementation can be discarded.
+
+/Hate to burst your bunn;e, but supervise *is* a hacky userspace method./
+
+/Have a look at DTrace to begin with, it was originally developed for Solaris 10 and it was one of our essential diagnostics tools.  It was ported to OS X and most of the BSDs around 2009 or 2010 or so./
+
   Then we can finally have a good process API on Linux.
 * Footnotes
+
+[fn:1] *IMPORTANT:* This FLASK is not related to the Python Flask
+package in any way and Stephen Smalley is currently employed by the
+United States' National Security Agency (in ComSec).
 
 [fn:process_groups]
 Process groups provide another means to kill a process.
