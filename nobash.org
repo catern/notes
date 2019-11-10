@@ -93,6 +93,111 @@ and passing them down over exec.
 (You can open files and sockets and other things and then pass them down to a child process in Unix;
 it's a little-known ability, because it ranges from extremely painful to impossible to do in bash,
 and most people are starting their processes from bash instead of Python!)
+
+Note I say passing down config via serialization.
+Don't pass down your config via command line arguments in the traditional Unix style.
+
+Traditional Unix command line arguments (e.g. flags like -t -h -is, mixed with filenames, as well as --these --and=this),
+are notoriously vulnerable to confusing "flags" with "values" like filenames;
+this is most obvious if you have, say, a file called "-rf" and you call "rm *".
+
+If you use a decent serialization format instead of traditional getopt and its descendents,
+this problem goes away.
+
+To prevent the temptation to hand-edit configs,
+(instead you should just edit the Python code that generates the config -
+ideally extending the high-level code to support your new use case)
+prefer to use binary serialization for your config.
+
+This also discourages commiting the configs to source control.
+
+You can pass down your serialized binary config through command line arguments if you remot
+* abstract your python, don't just copy your config
+Now, the Python code that generates this config should certainly be *abstracted*.
+You should not just have a big Python file with a dictionary or something listing all the possible keys and values for configuration.
+Those values have *semantic meaning*,
+and that meaning should be expressed through *types*.
+
+I have often seen people new to this philosophy just copy their config into Python.
+This is not really any better than config files,
+because it's exactly the same (or worse) experience to write,
+*and* it's unusual and users don't understand why they have to do it.
+
+Instead, you must abstract your config.
+Don't just have a bunch of key-values!
+
+If something takes a hostname, or a path, or something;
+represent the invariants with a type!
+
+If, when a program A is configured to talk to another B, they must have a bunch of other configs in sync - represent that!
+Define the config for program B in one place,
+and reuse it when configuring program A to talk to B.
+This is easy now that you are using Python for your configuration:
+the config for program B is just a function argument for the function which configures program A!
+In this way you can easily construct a different program B with different config,
+and just call the function for program A with the different config for program B,
+and everthing is automatically is sync.
+
+This is the most basic kind of abstraction possible when working in Python;
+it's nearly impossible if you're storing your configs in a bunch of JSON or INI or YAML.
+* templating
+Don't template your config.
+That's pointless and stupid.
+Your config is a *serialization format* to communicate values from your nice, high-level Python,
+to your application which is written in some other language and running in some other process.
+
+If you template your config, you'll be tempted to put values in the templates.
+No! You should have everything in Python, where it can be easily abstracted.
+Write out your config using the appropriate serializer for JSON or Protobuf or your custom config format.
+
+Templating forces you to be concious of how your data is going to be formatted on disk and your application is going to read it.
+That's pointlessly low-level;
+you want to remove such worries from your mind permanently,
+and for the most part,
+stick to manipulating pure Python values which somewhere down the line will be magically communicated to your application.
+* DON'T call Python from your application
+That is insane and a highway to hell.
+
+What are even the semantics of this?
+You start your program with a bit of configuration which points at a Python file,
+which it executes and then - pulls the configuration out of some variable?
+
+How does the Python file know what the right type is?
+
+It's inversion of control,
+and like all inversion of control,
+it's tremendously stupid and pointless and complicates things.
+
+Configuration is a *parameter*.
+Pass it as... *a parameter*.
+
+It flows *down* from the top of your program,
+you don't randomly magic it out of the filesystem midway through your call stack.
+* don't write shell scripts at all
+*Why* are you writing a shell script?
+Some stupid glue?
+
+Consider that you are a moron and that you shouldn't be doing that.
+Just include that glue in your Python code that you have at the top-level.
+
+No shell script *ever* needs to exist.
+It is *never* more maintainable to write a shell script than a Python script.
+Those who disagree have had their minds sadly poisoned by shell.
+
+They will doubtless raise issues like:
+"I can run shell scripts over ssh!"
+or
+some other stuff.
+
+Eh, let's not try to persuade people to not write bash.
+
+Let's just show them that there is a ton of stuff that they can't do in bash.
+And they are severely weakening themselves by not using Python.
+
+Such as serialization,
+or directly invoking C main functions,
+or passing around file descriptors,
+or acessing various system functions.
 * why
 it's hard to abstract and maintain this configuration,
 real languages are better
