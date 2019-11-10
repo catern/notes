@@ -1,0 +1,119 @@
+#+title: Post about not using bash or config files
+
+Don't use bash or config files.
+* no process config
+Don't embed a higher level language into your program and write your config in that, either.
+
+Instead, write your config in a nice, type-safe language;
+Python with the mypy typechecker works nicely.
+
+Make a nice interface for starting up your application;
+you can add lots of types for describing how to configure it.
+
+On the application side, take your configuration as a typed argument in your main function.
+
+The higher-level the better;
+prefer, for example, to be passed an already-open socket rather than an IP address and port.
+
+Then - call this function from your "scripting language"!
+Create the configuration for your application by building the datatype that your main function takes as an argument.
+
+If your application needs to run in a subprocess,
+bridge the gap between the "scripting language" and your application through some serialization framework;
+it doesn't matter which one,
+it's just a way to provide a cross-language datatype that you can pass to your application's main.
+
+Serialize the config using that framework,
+write it to the application (perhaps on stdin or another file descriptor),
+and deserialize it in a top-level wrapper for the application
+(written in the same language as the application)
+which then calls the main function.
+* no supervisor config
+You don't need to configure a process supervisor, because you don't even need one. 
+
+Don't configure your process supervisor like systemd.
+Just supervise your processes yourself.
+
+Then you don't have to "configure" your policies like "how quickly to restart" or "where to put logs".
+You can just code those.
+Starting processes is the most basic operation in Unix;
+you don't need a separate process to handle it.
+
+It can be hard to deal with processes in Unix.
+But it can be made much easier with libraries.
+You don't need a separate program which opaque, domain-specific configuration to manage it;
+you just need a process management library.
+* no bash
+You don't need to invoke shell commands, because you don't even need one.
+
+Building pipelines of processes is great,
+but you can do it in Python just fine,
+and you don't have the headaches of writing bash.
+(And if you write bash for long enough,
+you become braindamaged and start thinking bash is good;
+sometimes you can recover though)
+
+
+Yes, it's harder.
+But that's because it's better.
+* use argdata
+Stop passing files by filename.
+
+Open them, and pass them by file descriptor.
+
+That's slightly harder to use from the shell - but who cares?
+We should surpass the shell anyway.
+
+Its many bugs are so engrained in our culture,
+that it even tricks people into thinking bugs with the shell,
+are actually fundamental bugs in the Unix kernel interface,
+instead of just userspace issues. 
+* directly calling the c function from python
+we could talk about this first,
+and then talk about execing.
+
+intredasting.
+
+that is definitely compelling and also makes me not have to explain passing down fds.
+
+yeah that sounds good!
+
+then I can just say:
+write a python toplevel instead of a bunch of configuration!
+
+it's much more abstractable and sharable!
+
+much better! and good! and much good!
+
+and if you can't do that, then exec the process instead,
+passing down data structures via serialization.
+
+you can avoid passing down filenames and port numbers by opening the files and sockets in advance,
+and passing them down over exec.
+(You can open files and sockets and other things and then pass them down to a child process in Unix;
+it's a little-known ability, because it ranges from extremely painful to impossible to do in bash,
+and most people are starting their processes from bash instead of Python!)
+* why
+it's hard to abstract and maintain this configuration,
+real languages are better
+
+and they improve!
+
+there has been essentially no improvement in configuration,
+because it is a dead end.
+
+there is nowhere to improve.
+it's the wrong way to do it.
+
+(or at least, I think it's the wrong way to do it, but that doesn't necessarily mean it couldn't be improved.
+but I think it's clear there's been minimal improvement, which I think is suspicious!
+since that is what you would see if it *couldn't* be improved!
+and if something can't be improved, it's a dead end,
+and this is not the dead end where I want to stay forever)
+
+no bash and configuration and json and yaml and stuff!
+* create connections ahead of time
+??
+* no API configuration
+Pulumi stuff?
+
