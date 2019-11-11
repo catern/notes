@@ -1,117 +1,170 @@
 #+title: Post about not using bash or config files
 
 Don't use bash or config files.
-* no process config
-Don't embed a higher level language into your program and write your config in that, either.
+* stop using "configuration files"!
+Most programs run in more than one environment;
+even if they only ever run in one environment, it's good practice to have at least a little abstraction,
+and not hardcode a bunch of ports and paths and preferences.
+That stuff that you aren't hardcoding is configuration.
 
-Instead, write your config in a nice, type-safe language;
-Python with the mypy typechecker works nicely.
+Most people read their configuration out of configuration files;
+YAML, JSON, INI, or whatever bespoke formats,
+written to disk and read by the daemon.
+Sometimes their configuration file is even a programming language,
+which they evaluate and load.
 
-Make a nice interface for starting up your application;
-you can add lots of types for describing how to configure it.
+Stop doing that!
+Your configuration is a bunch of values which you want to pass to your programs.
+So just do that instead!
+Write a top-level executable file in whatever language, which contains all the configuration values,
+and which runs the main function of your program.
 
-On the application side, take your configuration as a typed argument in your main function.
+You can commit that to source control, modify it for different environment, etc, etc, etc.
+You can let users write their own top-levels, in whatever language, to configure the program;
+you can even give them nice libraries to express the configuration in a high-level way.
 
-The higher-level the better;
-prefer, for example, to be passed an already-open socket rather than an IP address and port.
+That last point - nice libraries to express configuration in a high-level way - is the core of this.
+When your configuration is stored in a configuration file,
+you can't abstract anything.
+Even when it's stored in a file which is evaluated by the program,
+written in a programming language with some abstraction capabilities,
+you have to manage a bizzare bespoke environment where you run inside another program.
+Users don't want to have to deal with that - I certainly don't!
 
-Then - call this function from your "scripting language"!
-Create the configuration for your application by building the datatype that your main function takes as an argument.
+But writing a top-level executable script,
+which invokes your program as a library,
+is the default case for all programming languages.
+It's simple. It's easy. Everyone has dealt with writing top-level executables before.
+It's the first thing anyone does in a programming language: Hello, world.
 
-If your application needs to run in a subprocess,
-bridge the gap between the "scripting language" and your application through some serialization framework;
-it doesn't matter which one,
-it's just a way to provide a cross-language datatype that you can pass to your application's main.
+With such a setup, you can easily define reusable modules in your programming language,
+which contain configuration shared between many top-levels.
+If you are running a program inside a larger environment,
+you can write a top-level that references the configs for other top-levels - by just importing them!
+You can have types and functions as normal,
+and make use of other libraries,
+and do whatever you want.
 
-Serialize the config using that framework,
-write it to the application (perhaps on stdin or another file descriptor),
-and deserialize it in a top-level wrapper for the application
-(written in the same language as the application)
-which then calls the main function.
-* no supervisor config
-You don't need to configure a process supervisor, because you don't even need one. 
+If you want more abstraction, you can easily define more abstraction which wraps your individual application;
+your top-level can specify a few tweaks and overrides,
+pass them as parameters to a function or modify a class or whatever is natural in your programming language,
+and then start your program.
 
-Don't configure your process supervisor like systemd.
-Just supervise your processes yourself.
+There are some issues with this idealized form,
+where you do everything in one language,
+a language where the top-levels can be easily modified in-place to reconfigure things.
+Let's look at the solutions.
+** My program is written in a compiled language.
+Is your program written in C or some other compiled language?
+Just recompile the top-level every time you want to change configuration.
+** My program is written in a compiled language and I don't want to recompile all the time.
+OK, that isn't very easy for most developers.
+You *should* have a development workflow where it is easy to make a tweak, recompile, retest, and reinstall,
+but alas most people do not.
 
-Then you don't have to "configure" your policies like "how quickly to restart" or "where to put logs".
-You can just code those.
-Starting processes is the most basic operation in Unix;
-you don't need a separate process to handle it.
+So make bindings for some other higher-level language which you can more easily deploy.
+I'll treat Python as a stand-in for "some other higher level language";
+pretty much any scripting language would work, so when I say Python, substitute your preferred language.[fn:notpython]
+Of course, in modern Python, there's now pretty good static typing support,
+so we can using a lot of nice static typing in our configuration, where we can, to ensure it's correct at lint time.
 
-It can be hard to deal with processes in Unix.
-But it can be made much easier with libraries.
-You don't need a separate program which opaque, domain-specific configuration to manage it;
-you just need a process management library.
-* no bash
-You don't need to invoke shell commands, because you don't even need one.
+You can even wrap all your C libraries and construct the objects your C application needs *from Python*.
 
-Building pipelines of processes is great,
-but you can do it in Python just fine,
-and you don't have the headaches of writing bash.
-(And if you write bash for long enough,
-you become braindamaged and start thinking bash is good;
-sometimes you can recover though)
+You can delete that huge amount of ugly initialization code that is awkward to write in C.
+Just do it from Python instead!
+** My program is written in a compiled language, and I don't want to recompile all the time, and I can't embed that language in Python.
+There are lots of languages that can't be easily embedded in Python,
+but let's just go all the way to the hardest case:
+It's quite painful to embed a Java program, hosted on the JVM, into a Python program.
 
+But again the solution is easy,
+and indeed this solution is probably what you want to do in *all* cases:
+Exec your program written in another language from your Python top-level.
 
-Yes, it's harder.
-But that's because it's better.
-* use argdata
-Stop passing files by filename.
+Right before execing your program,
+have your Python code serialize out the configuration in some nice encoding on the fly - argdata, say, or protobuf.[fn:getopt][fn:binary]
+You can pass file descriptors like socket and open files over exec,
+and the new program will be able to use them.[fn:fdpassing]
+Argdata supports this nicely.
 
-Open them, and pass them by file descriptor.
+Pass the serialized configuration down to your program over a pipe,
+to avoid your configuration from being morally fouled by coming in conact with the filesystem.
+Your configuration is serialized on the fly right before execution,
+and is gone after startup,
+and the serialization is merely an implementation detail,
+rather being the primary form of interaction as with traditional persistent configuration files.
 
-That's slightly harder to use from the shell - but who cares?
-We should surpass the shell anyway.
+Depending on whatever domain-specific stuff you're doing,
+you may be able to pass quite a lot of already-initialized objects across exec.
+** I have programs written in multiple languages.
+Most non-trivial setups have programs written in multiple langauges.
+Luckily, this is also solved by the solution from the previous bullet point:
+Just exec the program from your Python top-level.
 
-Its many bugs are so engrained in our culture,
-that it even tricks people into thinking bugs with the shell,
-are actually fundamental bugs in the Unix kernel interface,
-instead of just userspace issues. 
-* directly calling the c function from python
-we could talk about this first,
-and then talk about execing.
+All your programs in all your languages can be configured in a single, uniform means.
+Even if they have totally different and incompatible serialization formats for that configuration!
 
-intredasting.
+Indeed, that's the situation I usually find myself in;
+every program has its own bespoke native means of serializing down configuration,
+but that doesn't matter.
+In Python, the interfaces for them are all uniform:
+Some arguments, of some types, passed to a function which execs the program.
+The unique capabilities of each program are preserved;
+but the unnecessary differences in configuring them are removed.
+* Further developments
+Now you have all your applications being invoked from Python top-levels,
+and everthing is grand.
 
-that is definitely compelling and also makes me not have to explain passing down fds.
+But there's something weird.
 
-yeah that sounds good!
+Very often, I want to dynamically generate a value,
+like a port number or a pipe,
+and use it in more than one program.
+But each of my top-levels are independent.
+They can't communicate; so what am I to do?
 
-then I can just say:
-write a python toplevel instead of a bunch of configuration!
+Well, unite them!
+Have a new top-level Python script,
+which start multiple programs as subprocesses,
+just by calling the functions you already had in your top-levels.
+Then you can share values between those functions just fine, in Python,
+by passing them as arguments.
 
-it's much more abstractable and sharable!
+It can be tricky to deal with subprocesses on Unix;
+but there are lots of libraries available to make it easier.
 
-much better! and good! and much good!
+You might even want to generate a value that needs to be shared across hosts.
+For example, you might want to create an already-connected TCP connection,
+and pass it down to two programs running on different hosts.
+You can do that from Python too, no problem.
+Have your Python top-level start up the subprocesses across multiple hosts;
+again, there are lots of libraries to make this easy.
+** TODO dependencies
+should we mention starting things up in dependency order?
+or monitoring things?
 
-and if you can't do that, then exec the process instead,
-passing down data structures via serialization.
+both of those are achievable with process supervisors.
+they just stink in other ways.
 
-you can avoid passing down filenames and port numbers by opening the files and sockets in advance,
-and passing them down over exec.
-(You can open files and sockets and other things and then pass them down to a child process in Unix;
-it's a little-known ability, because it ranges from extremely painful to impossible to do in bash,
-and most people are starting their processes from bash instead of Python!)
+since you can't control stuff. hmm.
+I guess I shouldn't mention it.
 
-Note I say passing down config via serialization.
-Don't pass down your config via command line arguments in the traditional Unix style.
+what are the things I mentioned?
+order dependencies with types;
+that's definitely a cool one sure.
 
-Traditional Unix command line arguments (e.g. flags like -t -h -is, mixed with filenames, as well as --these --and=this),
-are notoriously vulnerable to confusing "flags" with "values" like filenames;
-this is most obvious if you have, say, a file called "-rf" and you call "rm *".
+maybe we *should* mention that.
+you can enforce correct dependencies with types.
+instead of just ad-hoc saying there's a dep.
 
-If you use a decent serialization format instead of traditional getopt and its descendents,
-this problem goes away.
+that's an advanced notion though, the main thing is simple.
+we would need more examples.
+** TODO monitoring
+you can... make it impossible to start a process and leak it?
+make a process that isn't monitored?
 
-To prevent the temptation to hand-edit configs,
-(instead you should just edit the Python code that generates the config -
-ideally extending the high-level code to support your new use case)
-prefer to use binary serialization for your config.
-
-This also discourages commiting the configs to source control.
-
-You can pass down your serialized binary config through command line arguments if you remot
+that's also a relatively advanced notion.
+maybe we should stick to what we have.
 * abstract your python, don't just copy your config
 Now, the Python code that generates this config should certainly be *abstracted*.
 You should not just have a big Python file with a dictionary or something listing all the possible keys and values for configuration.
@@ -140,6 +193,51 @@ and everthing is automatically is sync.
 
 This is the most basic kind of abstraction possible when working in Python;
 it's nearly impossible if you're storing your configs in a bunch of JSON or INI or YAML.
+* no process config
+Don't embed a higher level language into your program and write your config in that, either.
+
+Instead, write your config in a nice, type-safe language;
+Python with the mypy typechecker works nicely.
+
+Make a nice interface for starting up your application;
+you can add lots of types for describing how to configure it.
+
+On the application side, take your configuration as a typed argument in your main function.
+
+The higher-level the better;
+prefer, for example, to be passed an already-open socket rather than an IP address and port.
+
+Then - call this function from your "scripting language"!
+Create the configuration for your application by building the datatype that your main function takes as an argument.
+
+If your application needs to run in a subprocess,
+bridge the gap between the "scripting language" and your application through some serialization framework;
+it doesn't matter which one,
+it's just a way to provide a cross-language datatype that you can pass to your application's main.
+
+Serialize the config using that framework,
+write it to the application (perhaps on stdin or another file descriptor),
+and deserialize it in a top-level wrapper for the application
+(written in the same language as the application)
+which then calls the main function.
+** DON'T call Python from your application
+ That is insane and a highway to hell.
+
+ What are even the semantics of this?
+ You start your program with a bit of configuration which points at a Python file,
+ which it executes and then - pulls the configuration out of some variable?
+
+ How does the Python file know what the right type is?
+
+ It's inversion of control,
+ and like all inversion of control,
+ it's tremendously stupid and pointless and complicates things.
+
+ Configuration is a *parameter*.
+ Pass it as... *a parameter*.
+
+ It flows *down* from the top of your program,
+ you don't randomly magic it out of the filesystem midway through your call stack.
 * templating
 Don't template your config.
 That's pointless and stupid.
@@ -155,24 +253,98 @@ That's pointlessly low-level;
 you want to remove such worries from your mind permanently,
 and for the most part,
 stick to manipulating pure Python values which somewhere down the line will be magically communicated to your application.
-* DON'T call Python from your application
-That is insane and a highway to hell.
+** TODO hmm
+I guess I do need to engage with the notion of templating configuration.
 
-What are even the semantics of this?
-You start your program with a bit of configuration which points at a Python file,
-which it executes and then - pulls the configuration out of some variable?
+Well, as long as someone is doing it on the fly, they are fine.
 
-How does the Python file know what the right type is?
+Well, they might be tempted to write a big Python program
+that templates out a bunch of configs and sticks them on disk.
 
-It's inversion of control,
-and like all inversion of control,
-it's tremendously stupid and pointless and complicates things.
+Instead of tying the config and the program together.
+Why shouldn't they write out all the configs ahead of time?
 
-Configuration is a *parameter*.
-Pass it as... *a parameter*.
+well cuz it stinks and, is bad and stuff!
+you'll be tempted to commit those files or change them or stuff
 
-It flows *down* from the top of your program,
-you don't randomly magic it out of the filesystem midway through your call stack.
+hmm. yeah.
+let's engage with this
+
+ok one good reason is that you can't do dynamic things.
+
+you can do dynamic things easily and obviously when you're writing your own top-level,
+and you can still do dynamic things when you're execing.
+
+but you can't do dynamic things when templating out configs.
+
+it's a bad serialization format.
+
+and by dynamic things I mean stuff like opening a socket or a file and passing it down.
+** reframe it
+ok so we aren't actually battling templating
+
+we're battling, "write configs in python and then serialize them out to files in advance".
+generate config files using abstraction ahead of time.
+
+well, we can't do any runtime stuff;
+it makes it hard to just do things.
+
+(although some people would consider that a benefit, because they can generate configs and then parse them, separate steps,
+which means they can just run their config generation in a test without running things for real)
+
+but yeah we can't just, y'know.
+tie the generation of config for one component to actually running it.
+
+the config generation for a component is very far from the component,
+which is wacky.
+
+it's hard to see what's going on!
+you have more than one moving part.
+you want to reduce the number of moving parts as much as possible.
+
+and part of that is not having config files,
+but instead just having your configuration directly in the top-level.
+
+eh I'm just vaguely gesturing here. I need to point at concrete use cases.
+but yeah, directly wrapping instead of writing out config before, is the way to go,
+and it's what I want to do.
+
+and we shouldn't engage too much with the strawman of just writing config files to disk and committing them.
+the strongest form is where you write them out persistently from a program.
+because then you can have at least some abstraction.
+*** direct style
+yeah sure it's direct style,
+instead of declarative style.
+which is good!
+
+and you can still test it through, say, interpreting the top-levels different by overriding the program exec stuff,
+or by um, i had some other idea to write here too.
+
+direct syle not declarative style.
+** clear delineation
+clear delineation between config and program:
+failures of parsing or construction happen in config toplevel,
+not in main program,
+so it's clear that it's a config issue.
+
+of course, this requires that the interface to your program is at least somewhat typed,
+rather than just receiving a bunch of strings.
+the top-level should do the configuration and building of those typed objects,
+then pass them down to your program.
+** config finds program, program doesn't find config
+rather than having the program look for config files,
+possibly in some hardcoded place,
+possibly overridden by environment variables,
+possibly looking in multiple places, falling back to later ones based on priority...
+
+have the config find the program using your normal library discovery methods of your language.
+you import the program. no problem.
+
+now you don't have to worry about linking up the config and the program;
+it happens automatically using the library discovery tooling your language already has.
+
+whereas previously you would have to worry about putting the config in the right place and all that stuff.
+yet more code that you can just delete!
 * don't write shell scripts at all
 *Why* are you writing a shell script?
 Some stupid glue?
@@ -221,4 +393,43 @@ no bash and configuration and json and yaml and stuff!
 ??
 * no API configuration
 Pulumi stuff?
+
+* Footnotes
+
+[fn:binary]
+To prevent the temptation to hand-edit configs,
+(instead you should just edit the Python code that generates the config -
+ideally extending the high-level code to support your new use case)
+prefer to use binary serialization for your config.
+
+This also discourages commiting the configs to source control.
+
+You can pass down your serialized binary config through command line arguments,
+if you find some serialization format which eliminates null bytes.
+That would allow you to nicely avoid an unnecessary pipe;
+unfortunately Unix pointlessly requires arguments to not have null bytes,
+but it has no other restrictions.
+
+
+[fn:getopt]
+Note I say passing down config via serialization.
+Don't pass down your config via command line arguments in the traditional Unix style.
+
+Traditional Unix command line arguments (e.g. flags like -t -h -is, mixed with filenames, as well as --these --and=this),
+are notoriously vulnerable to confusing "flags" with "values" like filenames;
+this is most obvious if you have, say, a file called "-rf" and you call "rm *".
+
+If you use a decent serialization format instead of traditional getopt and its descendents,
+this problem goes away.
+
+[fn:fdpassing] 
+Most people don't pass file descriptors down because it doesn't work well with possibly-incompatible configuration files.
+But you don't have that problem anymore!
+It also is incredibly painful to do from bash.
+
+[fn:notpython]
+Certainly Python isn't my favorite high level language either.
+But, alas, many people are familiar with it, and this is a fairly radical article,
+and I don't want to propose something even more radical and out there,
+like using a language with types.
 
