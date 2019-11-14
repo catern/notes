@@ -457,8 +457,28 @@ we can perform the annoying configuration details in a higher-level language
 before passing the completed configuration down to C through a Python binding.
 Or, in the most general case, we can have our executable in language A
 just serialize the configuration in some format[fn:serialization] and pass it directly over stdin
-to a stub executable written in language B.
+to a stub executable written in language B which we exec.
 
+We can also generalize this notion of "static linking" further, to multi-process, multi-program systems.
+In many systems, we start up one process,
+and it is "dynamically linked" to other processes by connecting to some port specified in its configuration.
+The service listening on that port might not have started,
+or might have been replaced by a different incompatible version or different service entirely.
+We have no certainty that the port in the configuration is correct.
+
+We can statically link these processes by generalizing the same solution we used for configuration:
+Write a program which, instead of starting up one piece of software with some static configuration,
+starts up multiple pieces of software, configuring them to talk to each other.
+This single parent program can straightforwardly establish a TCP connection
+and pass each half of that TCP connection down to different components it starts.[fn:fd_passing]
+In this way, we can statically guarantee that each component is connected to the correct service.
+
+In the long run,
+more information must become statically visible
+if we are to make large scale systems.
+Extending "static linking" to configuration is one instance of this,
+but there are many other ways in which we can make information statically visible,
+and use it to decrease complexity and improve correctness of our systems.
 * abstract your python, don't just copy your config
 Now, the Python code that generates this config should certainly be *abstracted*.
 You should not just have a big Python file with a dictionary or something listing all the possible keys and values for configuration.
@@ -1022,6 +1042,21 @@ I think the thesis's claim that they're orthogonal is confused.
 
 I'll just say, statically link.
 
+yeah heh this is totally different focus from what I had initially
+
+so we finally realized that it's static composition that I wanted
+
+the rest of it can be achieved through dynamic composition,
+just, kinda horribly.
+
+hmm I could talk about how this naturally extends to dynamic sharing.
+
+but then again you could do that with a configuration daemon
+
+but that stinks anyway, this is statically composed instead of depending on the daemon!
+no need to depend on that daemon running!
+
+hm
 * Footnotes
 
 [fn:dynlibs]
@@ -1033,11 +1068,16 @@ which don't apply in the case of configuration.
 The ability to upgrade every program using a library at once
 also doesn't really apply for most configuration scenarios.
 
-In general I subscribe to the viewpoint [[https://nixos.org/~eelco/pubs/phd-thesis.pdf#page=178][described in section 7.1.1 of the Nix thesis]]
-about static composition and dynamic linking.
+I think [[https://nixos.org/~eelco/pubs/phd-thesis.pdf#page=178][section 7.1.1 of the Nix thesis]] has a nice, concise summary of some issues
+about static and dynamic linking.
 
 [fn:serialization] 
 Protobuf and argdata are some nice binary[fn:binary] serialization formats.
+
+[fn:fd_passing]
+In Unix, any file descriptor (which includes sockets) can be passed down to a child process
+and used by that child process.
+So, a parent process can create some sockets, and then pass them down to its children.
 
 [fn:binary]
 To prevent the temptation to hand-edit configs,
