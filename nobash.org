@@ -19,6 +19,10 @@ So just do that instead!
 Write a top-level executable file in whatever language, which contains all the configuration values,
 and which runs the main function of your program.
 
+Instead of carefully setting things up so your program can find your configuration file,
+your configuration top-level executable finds your program, importing it as a library,
+through the normal dependency mechanisms for your language.
+
 You can commit that to source control, modify it for different environment, etc, etc, etc.
 You can let users write their own top-levels, in whatever language, to configure the program;
 you can even give them nice libraries to express the configuration in a high-level way.
@@ -111,60 +115,350 @@ In Python, the interfaces for them are all uniform:
 Some arguments, of some types, passed to a function which execs the program.
 The unique capabilities of each program are preserved;
 but the unnecessary differences in configuring them are removed.
-* Further developments
-Now you have all your applications being invoked from Python top-levels,
-and everthing is grand.
+** Further developments
+ Now you have all your applications being invoked from Python top-levels,
+ and everthing is grand.
 
-But there's something weird.
+ But there's something weird.
 
-Very often, I want to dynamically generate a value,
-like a port number or a pipe,
-and use it in more than one program.
-But each of my top-levels are independent.
-They can't communicate; so what am I to do?
+ Very often, I want to dynamically generate a value,
+ like a port number or a pipe,
+ and use it in more than one program.
+ But each of my top-levels are independent.
+ They can't communicate; so what am I to do?
 
-Well, unite them!
-Have a new top-level Python script,
-which start multiple programs as subprocesses,
-just by calling the functions you already had in your top-levels.
-Then you can share values between those functions just fine, in Python,
-by passing them as arguments.
+ Well, unite them!
+ Have a new top-level Python script,
+ which start multiple programs as subprocesses,
+ just by calling the functions you already had in your top-levels.
+ Then you can share values between those functions just fine, in Python,
+ by passing them as arguments.
 
-It can be tricky to deal with subprocesses on Unix;
-but there are lots of libraries available to make it easier.
+ It can be tricky to deal with subprocesses on Unix;
+ but there are lots of libraries available to make it easier.
 
-You might even want to generate a value that needs to be shared across hosts.
-For example, you might want to create an already-connected TCP connection,
-and pass it down to two programs running on different hosts.
-You can do that from Python too, no problem.
-Have your Python top-level start up the subprocesses across multiple hosts;
-again, there are lots of libraries to make this easy.
-** TODO dependencies
-should we mention starting things up in dependency order?
-or monitoring things?
+ You might even want to generate a value that needs to be shared across hosts.
+ For example, you might want to create an already-connected TCP connection,
+ and pass it down to two programs running on different hosts.
+ You can do that from Python too, no problem.
+ Have your Python top-level start up the subprocesses across multiple hosts;
+ again, there are lots of libraries to make this easy.
+*** TODO dependencies
+ should we mention starting things up in dependency order?
+ or monitoring things?
 
-both of those are achievable with process supervisors.
-they just stink in other ways.
+ both of those are achievable with process supervisors.
+ they just stink in other ways.
 
-since you can't control stuff. hmm.
-I guess I shouldn't mention it.
+ since you can't control stuff. hmm.
+ I guess I shouldn't mention it.
 
-what are the things I mentioned?
-order dependencies with types;
-that's definitely a cool one sure.
+ what are the things I mentioned?
+ order dependencies with types;
+ that's definitely a cool one sure.
 
-maybe we *should* mention that.
-you can enforce correct dependencies with types.
-instead of just ad-hoc saying there's a dep.
+ maybe we *should* mention that.
+ you can enforce correct dependencies with types.
+ instead of just ad-hoc saying there's a dep.
 
-that's an advanced notion though, the main thing is simple.
-we would need more examples.
-** TODO monitoring
-you can... make it impossible to start a process and leak it?
-make a process that isn't monitored?
+ that's an advanced notion though, the main thing is simple.
+ we would need more examples.
+*** TODO monitoring
+ you can... make it impossible to start a process and leak it?
+ make a process that isn't monitored?
 
-that's also a relatively advanced notion.
-maybe we should stick to what we have.
+ that's also a relatively advanced notion.
+ maybe we should stick to what we have.
+* try 2
+Many pieces of software use configuration files.
+The software is distributed as an executable,
+which, when invoked, locates a configuration file in the filesystem and parses it.
+This may involving some computation to evaluate the language the configuration file is written in.
+Then the software uses the values read from the configuration file to change its behavior.
+
+The user configures the software by writing a configuration file,
+locating the file in a place that the software will read,
+and running the executable.
+Example configuration files may be distributed with the software, which the user may use as a basis.
+Advanced or large-scale users
+can write programs to generate configuration files,
+one per configuration they wish to use.
+By sharing code in these programs,
+users can share configuration between different configuration files for different environments.
+
+Some examples of software written in this way are Apache HTTPD, GNU Emacs, and bash.
+
+A minority of software takes a different approach.
+Instead of being distributed as an executable which reads a configuration file,
+the software is distributed as a library.
+To use the software, a top-level executable is written in the appropriate programming language,
+loading one or more functions from the software's library, and calling them;
+typically, these functions will never return.
+Configuration is achieved by passing appropriate arguments to those functions.
+
+Some examples of software written in this way are the Xmonad tiling window manager,
+(not stumpwm because it's emacs-style)
+(insert more examples here - I'm sure there are some, might need to think hard - some things more library-ish?).
+
+The user configures the software by writing a top-level containing their desired configuration,
+and running the top-level.
+Example top-levels may be distributed with the software, which the user may use as a basis.
+
+Advanced or large-scale users
+can have many top-levels,
+one per configuration they wish to use.
+By sharing code in these top-levels,
+users can share configuration between different top-levels for different environments.
+
+# WRONG, this isn't a unique advantage
+These top-levels can also have dynamic behavior.
+A user can write a single top-level which dynamically (by running user code) discovers the correct configuration for their environment.
+The top-level can have some configuration determined statically, and other configuration determined dynamically,
+as is appropriate for a user's specific environment.
+# EEP EEP EEP! We can also have dynamic behavior with configuration files!
+# They can be evaluated and do things wackily!
+# ok so that's not too good
+# ok so that's not a difference after all.
+# we can even open sockets dynamically, hmm, dang.
+# well, we can still more easily group together common config with the top-level than with the embedded thing.. right?
+# maybe...?
+# not necessarily, an easy environment like Emacs, where you have whatever libraries you want,
+# allows much sharing easily.
+# hm.
+# but it's clearly intuitive that having a top-level which invokes multiple,
+# is easier to have... *dynamic* sharing, I guess,
+# between things.
+# right so we can 1. have dynamic things and 2. have shared things which are static,
+# but we can't have 3. dynamic things which are shared.
+# because we can't invoke multiple from the same language program with config files,
+# which we can do when we control the top-level.
+# very clear ok yes clear.
+# what about the, uhh... hmm. scale thing? point 1?
+# well, how would I manage a million emacs instances or something?
+# I guess I'd have some init.els which are one way,
+# with some aspects dynamically done, and...
+# yeah it seems relatively simple and achievable. so scale thing isn't valid either.
+# and what about the dependency on config files thing?
+# that's kind of an issue of mutable global state isn't it? yeah hmm.
+# global state makes it awkward to have multiple instances.
+# the top-level makes it easy.
+# this is the same thing as with sharing dynamic things between multiple instances in the same top-level?
+# hmm. interesting.
+# right I can say "the config is here"
+# but if it's separate, I don't know what that means
+# it's global mutable state, referred to by something else, so changing it would affect elswehere
+
+We can achieve that also with configuration files by synthesizing the two approaches.
+# generate config file on the fly and specify it by command line argument
+
+Or, advanced users can write a single top-level which dynamically discovers the correct configuration for their environment.
+Or, they can have a hybrid between these two extremes of "static" and "dynamic" configuration.
+
+1. clear upgrade to large scale - small scale and large scale ar identical, programmatic
+2. easy move between static and dynamic
+3. cleaner dependency story on config files hmmmmm
+
+hmmmmmm so if the application has a configuration file then we can just bind the configuration file wrapped around it.
+which hmmmmmmmmm we should highlight as a synthesis
+first we highlight that synthesis
+then we list all the advantages of the synthesis/dynamic style.
+
+
+these top-levels may share code through a domain-specific library customized to their specific needs.
+Or, they can write a single 
+Or, they can have a hybrid between these two extremes of "static" and "dynamic" configuration.
+
+Importantly, when software is configured programmatically in this way,
+"static" configuration as supported by configuration files becomes just a special case.
+Full dynamic configuration is possible.
+
+
+can write code to generate configuration files,
+one per configuration they wish to use,
+using templating or serialization libraries.
+
+Using them as a basis, a user will write their 
+and run their top-level to use the software.
+
+Advanced or large-scale users
+can have many top-levels,
+one per configuration they wish to use,
+and can develop their own abstractions on top of the software's interface
+to share code using the capabilities of their chosen language.
+
+The top-level locates the program using the language's normal dependency mechanisms.
+
+The user writes code which uses the library;
+the user's code is a top-level executable which is executed on its own.
+
+The user's top-level executable locates the program using the language's normal dependency mechanisms,
+and passes configuration values as arguments to the program by invoking it as a function.
+
+For the user to configure the program,
+they write a top-level that provides their desired configuration values.
+Advanced or large-scale users
+can have many top-levels, one per environment they want to run within,
+and can develop their own abstractions on top of the program's native interface
+using the abstraction capabilities of their language.
+
+** abstract type theory pontificating
+Fundamentally the difference is whether we have implicit side-effects
+(reading configuration files),
+or an explicitly typed system,
+(passing down configuration through a typed interface).
+
+One could propose a system
+where programs were annotated with the configuration files they read,
+and even the formats and dependencies of those configuration files.
+Then we could create abstractions to simplify and share configuration,
+and be statically sure that they are correct.
+One might compare this to the development of effect systems in programming language theory,
+where functions can be annotated with the side-effects they perform.
+
+But there's a simpler way to achieve an explicitly typed system,
+without having to introduce this complicated new annotation functionality in our systems.
+Just make the need for configuration (or the need to perform effects) explicit
+by making it explicit in the type of the function being invoked:
+in the types of the arguments.
+
+* try 3
+title: Use static configuration, not dynamic
+
+Most software reads its configuration from somewhere at runtime.
+
+Instead, our first choice should be to hard-code that configuration into the software at build-time.
+
+While it's possible, with enough effort, to statically type the configuration read at runtime,
+it's much easier if that composition of "software" and "configuration" happens at build time,
+and is static at execution time.
+Then we can type-check that composition using normal means.
+
+Multiple configurations can be achieved through multiple executables;
+or, at larger scale, reintroduction of dynamism, using inspection of the environment to decide how to be configured.
+
+Most software buries the "configuration" component inside the software.
+You start the software, and it looks for configuration in some place,
+and reads it and parses it.
+
+Instead, the "configuration" should be the interface for starting the software in the first place.
+To run the software, you should provide a configuration,
+and in this way allow static types to work.
+
+Ultimately, it's a question of whether we pass configuration as a statically-known function argument,
+or as statically-unknown implicit data in the global environment which is read dynamically.
+The latter is a popular, traditional approach
+but it sacrifices the benefits of static typing.
+If we like static typing
+so we should pass configuration statically, instead of dynamically.
+
+
+# don't say dynamic so much though?
+# because we can be dynamic.
+# we are just doing static composition,
+# instead of dynamic composition,
+# but we can still dynamically decide configuration values.
+
+In fact, static composition allows for *more* dynamism in configuration compared to the typical alternative.
+The composition happens in our normal programming language,
+which we can use to dynamically discover details about the environment
+and make configuration decisions that are appropriate for our use case.
+
+# of course we don't have to be dynamic if we don't want to, we can be fully static
+# maybe shouldn't say "allows for more dynamism", people will want static stuff
+
+where we would have 100 configuration files,
+now we have 100 executables.
+
+
+static composition instead of dynamic composition
+
+Configure software statically, not dynamically
+
+
+OK, ok, so really I want to say,
+"use static composition, not dynamic composition".
+
+That's the Nix philosophy.
+Stolen from Nix.
+
+Aha yes late static composition ok ok.
+
+okay
+
+"Static composition is good for configuration"
+
+borrow the Nix thesis terminology.
+
+* try 4
+title: Statically link your configuration
+
+Most software "dynamically links" its configuration.
+The configuration goes into some configuration file,
+which is loaded at runtime from some place in the filesystem.
+
+This has all the same problems as dynamically linking libraries.[fn:dynlibs]
+At runtime, the configuration might not be there,
+or it might be the wrong configuration,
+or the wrong configuration version:
+containing newer or older configuration parameters that don't match the software.
+
+Instead, we can statically link our configuration.
+The configuration and the software can be bound together,
+into an executable that, when run, uses a fixed configuration specified in advance,
+rather than looking up in the filesystem.
+This executable can't have the configuration issues we mentioned above;
+it shares much of the advantages of static linking in general.
+
+How can we statically link our configuration?
+It turns out to be easier and more natural than statically linking libraries.
+And it can be done in a way that preserves all the features of a "dynamically linked" configuration,
+like having different configurations for different environments.
+There are many ways,
+but if we're writing a program from scratch,
+the easiest is to write that program as a function rather than as an executable.
+
+A typical executable program has a main function which starts up,
+reads some configuration files,
+and then calls a function to run the real heart of the program,
+passing values parsed out of the configuration files.
+To statically link the configuration, we just get rid of that hardcoded main function.
+Instead, we make our own executable with its own main function,
+which directly calls the function that makes up the heart of the program,
+passing arguments which describe the desired configuration.
+This gives us an executable with statically linked configuration.
+
+Instead of having one configuration file per environment we wish to run in,
+we have one executable per environment we wish to run in.
+Instead of separately thinking about deployment of our configuration and deployment of our executable,
+we just deploy and run the executable specific to that environment.
+
+Besides the advantages of static linking,
+this style also naturally lends itself to statically typed configuration.
+Instead of writing a configuration file in JSON, YAML, or some other format,
+which can easily have mistakes which will only be caught at configuration load time,
+we can write configuration in our normal statically typed language.
+For example, instead of using a string to indicate which mode some component should run in,
+we can use an enum - and be statically sure that the enum is valid.
+
+This style also makes it easy to abstract over configuration,
+and share it between multiple environments.
+With traditional configuration files, we would use complex templating to generate configuration files;
+by writing our own main functions and executable,
+we can store our shared configurations in libraries that we import and reuse,
+through the normal code reuse patterns that are natural for our chosen language.
+We can also have dynamic behavior if we choose to:
+We can write code to inspect the environment and verify that it matches expectations,
+or decide dynamically what configuration is best based on discovered details.
+
+This doesn't require that we do everything in the same language, either.
+If we have, say, some software in C,
+we can call that from an executable written in Python;
+we can perform the annoying configuration details in a higher-level language
+before passing the completed configuration down to C through a Python binding.
+Or, in the most general case, we can have our executable in language A
+just serialize the configuration in some format[fn:serialization] and pass it directly over stdin
+to a stub executable written in language B.
+
 * abstract your python, don't just copy your config
 Now, the Python code that generates this config should certainly be *abstracted*.
 You should not just have a big Python file with a dictionary or something listing all the possible keys and values for configuration.
@@ -321,6 +615,12 @@ and you can still test it through, say, interpreting the top-levels different by
 or by um, i had some other idea to write here too.
 
 direct syle not declarative style.
+*** approach
+ok so I will just make the advantage over properly abstracted written out config files,
+explicit,
+by comparing against that.
+
+I will also mention abstraction but that's minor.
 ** clear delineation
 clear delineation between config and program:
 failures of parsing or construction happen in config toplevel,
@@ -345,56 +645,399 @@ it happens automatically using the library discovery tooling your language alrea
 
 whereas previously you would have to worry about putting the config in the right place and all that stuff.
 yet more code that you can just delete!
-* don't write shell scripts at all
-*Why* are you writing a shell script?
-Some stupid glue?
+* misc other
+** don't write shell scripts at all
+ *Why* are you writing a shell script?
+ Some stupid glue?
 
-Consider that you are a moron and that you shouldn't be doing that.
-Just include that glue in your Python code that you have at the top-level.
+ Consider that you are a moron and that you shouldn't be doing that.
+ Just include that glue in your Python code that you have at the top-level.
 
-No shell script *ever* needs to exist.
-It is *never* more maintainable to write a shell script than a Python script.
-Those who disagree have had their minds sadly poisoned by shell.
+ No shell script *ever* needs to exist.
+ It is *never* more maintainable to write a shell script than a Python script.
+ Those who disagree have had their minds sadly poisoned by shell.
 
-They will doubtless raise issues like:
-"I can run shell scripts over ssh!"
-or
-some other stuff.
+ They will doubtless raise issues like:
+ "I can run shell scripts over ssh!"
+ or
+ some other stuff.
 
-Eh, let's not try to persuade people to not write bash.
+ Eh, let's not try to persuade people to not write bash.
 
-Let's just show them that there is a ton of stuff that they can't do in bash.
-And they are severely weakening themselves by not using Python.
+ Let's just show them that there is a ton of stuff that they can't do in bash.
+ And they are severely weakening themselves by not using Python.
 
-Such as serialization,
-or directly invoking C main functions,
-or passing around file descriptors,
-or acessing various system functions.
-* why
-it's hard to abstract and maintain this configuration,
-real languages are better
+ Such as serialization,
+ or directly invoking C main functions,
+ or passing around file descriptors,
+ or acessing various system functions.
+** why no config files?
+ it's hard to abstract and maintain this configuration,
+ real languages are better
 
-and they improve!
+ and they improve!
 
-there has been essentially no improvement in configuration,
-because it is a dead end.
+ there has been essentially no improvement in configuration,
+ because it is a dead end.
 
-there is nowhere to improve.
-it's the wrong way to do it.
+ there is nowhere to improve.
+ it's the wrong way to do it.
 
-(or at least, I think it's the wrong way to do it, but that doesn't necessarily mean it couldn't be improved.
-but I think it's clear there's been minimal improvement, which I think is suspicious!
-since that is what you would see if it *couldn't* be improved!
-and if something can't be improved, it's a dead end,
-and this is not the dead end where I want to stay forever)
+ (or at least, I think it's the wrong way to do it, but that doesn't necessarily mean it couldn't be improved.
+ but I think it's clear there's been minimal improvement, which I think is suspicious!
+ since that is what you would see if it *couldn't* be improved!
+ and if something can't be improved, it's a dead end,
+ and this is not the dead end where I want to stay forever)
 
-no bash and configuration and json and yaml and stuff!
-* create connections ahead of time
-??
-* no API configuration
-Pulumi stuff?
+ no bash and configuration and json and yaml and stuff!
+** create connections ahead of time
+ ??
+** no API configuration
+ Pulumi stuff?
+* research
+oh I guess emacs is an example of,
+KIND of this.
+
+but it's very different from xmonad style,
+where you build the toplevel through explicit passing.
+
+emacs is configuration in the same way - set some global vars,
+define some stuff,
+just put it around in places and we use it.
+
+it's still inversion of control.
+
+I want to pass my data from the top, down!
+not have things look it up in global data!
+
+that is less typed, basically,
+if they look it up in a larger datastructure.
+
+passing down the data keeps it nicely typed.
+without having to make some crazy effect system.
+
+ok this is a nice insight but it's useless.
+
+except for making it clear that I really hate inversion of control
+
+yeah so emacs is an example of something I don't like;
+it reads a config file instead of the user writing the top-level.
+** getting rid of inversion of control by expressing path of computation in the type?
+hmm, could we fully get rid of inversion of control by like,
+having the type say exactly what the computation you need to perform is?
+
+like, um, someone might want to iterate a function 10 times,
+
+which you could enforce the caller doing for you, with the type.
+
+hm.
+
+well or, a function might want to look up some specific string in an environment say,
+which you could have the caller do
+(and make the looked-up string explicit in the argument type)
+
+yeah that's kind of interesting.
+
+and of course if we don't care about the path of computation then we can just have
+the bare type instead of the full path.
+* intersection
+between,
+the config is here.
+
+wait but that's like passing arguments initially?
+
+no because they are mutable if that config isn't constant
+
+if it's constant and specified in the thing that passes it, then no problem
+
+but if it's just some global mutable thing, then it's no different than hardcoding it.
+
+so if it's over there then hmm
+
+ok sure so if it's some global mutable thing then it's no different from hardcoding it, sure.
+
+and also let's compare to say
+
+one toplevel multiple function calls/programs/running things.
+
+easy to manage it.
+
+so what do we gain when we pull the config in?
+
+it's closed over, instead of having some separate mutable thing.
+
+it's a single unit.
+
+also, toplevels are a single unit without reference to external mutable stuff
+
+"We can achieve that also with configuration files by synthesizing the two approaches."
+
+right so we need to show what we gain by the synthesis or by just using toplevels.
+
+it's that, they are closed over units,
+without reference to external mutable state,
+which is separately managed.
+
+right, when you run it, *you know its configuration*.
+
+so you know what it is going to do.
+
+it's not looking at some other mutable thing which might be set up wrong.
+
+hmm yes.
+
+and more practically this means you can run multiple?
+
+how does that translate to running multiple?
+
+well instead of referencing some mutable external state,
+you're just passing in the argument,
+which means you can run multiple safely,
+because you aren't relying on this other mutable state.
+
+yeah ok. that's cool I like that.
+
+config files are this mutable state,
+which we have a reference too.
+
+but if we pass them immutably by value,
+then we don't have to worry about the state changing,
+and we can run multiple instances because they don't have a shared mutable state.
+
+hmm. something like that.
+
+how does that translate to shared dynamic things?
+
+not sure. hm.
+
+so if we have a single config and we invoke all of them using that single config,
+they can dynamically decide things hmmmm
+
+dunno.
+
+hmmm.
+
+ok.
+so.
+if we have immutable configs passed down, instead of read out of a shared mutable place,
+that is good. obv.
+
+those can include functions or dynamically generated values or all that stuff.
+
+what about this sharing of dynamic things?
+
+so if I have a config which is read out of a shared mutable place.
+
+then.
+
+well that shared mutable place is also *serialized* which is the real issue isn't it?
+
+so 1. it's serialized to text and 2. put in a shared mutable place.
+
+are those the two issues?
+
+so we could have it 1. serialized to text but not 2. put in a shared mutable place;
+and that would be fine and cool.
+
+er wait.
+
+even if it was serialized to text, we could have like port numbers,
+which are picked dynamically but can't be shared even though they are serialized to text.
+
+hmm.
+
+so we do some dynamic thing.
+
+and... it needs some communication means between the config files.
+and that's a huge hassle to do across multiple processes/interpreters,
+but very easy from a single interpreter.
+
+so. that's kind of also that it's serialized to text then.
+
+if I just asked some mutable shared object "hey give me some stuff",
+it could do it just fine.
+
+so yeah if there was some system daemon,
+where talking to it went over serialization,
+but it was shared and mutable um.
+
+wait okay so it's not really that it's a shared mutable place then or that it's sreialized is it.
+
+because yeah actually these config files could contact a system daemon or something to achieve sharing of dynthings.
+
+even though they are serialized to text.
+
+but obviously that's a hassle, hm.
+
+so okay, that is a still more advanced form of "configuration files":
+contact a daemon to get your config.
+
+why don't we like that?
+
+it's clearly still inversion of control, but why don't we like it?
+
+so - of course we need to not be prejudicial! maybe we do like it!
+
+so I contact a daemon to get my config,
+and then I can have dynamically created things shared.
+
+I can even have file descriptors passed back to me,
+fine fine.
+
+it's hacky, and more complicated, but it can work.
+
+so why does this suck?
+well, it's substantially more complicated - but why?
+
+well let's compare it to if the system daemon was the parent, hm.
+
+that could be the same anyway - the parent could pass down the pipe or something,
+and the child read off the config.
+
+hmm.
+
+so all this seems quite complex though! it's really just very complex!
+
+so we invert control by having each started up thing receive its config from some central daemon.
+which is a hack, because then there's this central thing.
+
+which we might *also* want to change, so.
+
+we never escape this central mutable shared thing.
+
+we always ultimately have a want for the parent to pass something down?
+
+right because the path to the daemon would be passed by the parent;
+or more likely, hardcoded, possibly in some shell script wrapper.
+
+and it isn't dynamic, but everything else can be.
+
+but then we have this same issue...
+if I want to start something up with different config,
+i.e. config not provided by that daemon,
+I have to pass something down anyway.
+
+and if I'm passing something down, why not pass everything down?
+
+hmm.
+
+but at least this is a big advance - a system daemon providing config!
+we should have considered that long before.
+
+really that's kind of like a big mutable shared object in a language;
+where you have some global DI framework thing and you load config from it.
+
+why does that suck?
+** hmm
+but lots of languages like having dynscope for configuration.
+
+HM.
+
+well, they are dumb and bad.
+they should be typed!
+
+but yeah that's just a lack of typing, hmm.
+
+so is this just, "statically type your configuration"?
+
+yeah I mean the issue with not knowing what config file you have,
+not knowing if it's initialized:
+
+that's the same thing with invoking a function that depends on a dynvar instead of a closure.
+
+i don't know what will happen, it uses the dynvar, it's totally wacky!
+
+and closure, I provide the config, it's much better!
+
+at least this provides a good language for these concerns
+
+and a much simpler footing to talk about it
+
+because I can just talk about types rather than all this other stuff about files and whatever
+
+I steelman'd the alternative as much as I could and it came down to dynamic scope vs static types.
+
+dynamic scope is untyped, deeply, I guess;
+implicit parameters are a different thing, which are much better
+
+ok so I can still have the right types in the file and test that at build time I guess
+this thing does that I guess https://github.com/cbeust/konfig
+
+but I don't know... what values are used?
+
+so what does this correspond to?
+it corresponds to, having the config in one large statically typed dynscoped thing.
+
+well but we don't know *what* config a specific executable will use.
+
+even if I guess we have checks that the binding will be compatible.
+
+well, yeah, we know the file will be valid,
+but we don't know 1. it will be in the right place,
+2. the right file will be there,
+or 3. what file will be used (that is kind of 1 and 2 also really)
+
+yeah, it comes down to using dynscope, or using a closure.
+
+not really static types.
+although static types are a bonus.
+
+
+Use static configuration, not dynamic
+
+is kinda the idea
+
+well how's that relative to the header thing that dwm has?
+** nix
+static composition for configuration
+
+yeah yeah yeah
+
+it's better, and also a good foundation for other things?
+like types and dynamism? hmm.
+
+well it doesn't enable anything except for correctness.
+
+yeah I mean it's clearly more correctness.
+more static assertion that things are right
+
+I want to just link to this page of the Nix thesis.
+
+https://nixos.org/~eelco/pubs/phd-thesis.pdf#page=178
+
+
+
+Well it's late binding vs early binding.
+
+although the thesis claims it is orthogonal to late vs early binding. hm.
+
+
+ok so I could say:
+
+"Statically link your configuration"
+
+as the title.
+
+I think the thesis's claim that they're orthogonal is confused.
+
+I'll just say, statically link.
 
 * Footnotes
+
+[fn:dynlibs]
+Dynamic linking libraries has substantial advantages too, of course.
+But they mostly don't apply in the case of configuration.
+
+The most important advantage is the efficiency benefits,
+which don't apply in the case of configuration.
+The ability to upgrade every program using a library at once
+also doesn't really apply for most configuration scenarios.
+
+In general I subscribe to the viewpoint [[https://nixos.org/~eelco/pubs/phd-thesis.pdf#page=178][described in section 7.1.1 of the Nix thesis]]
+about static composition and dynamic linking.
+
+[fn:serialization] 
+Protobuf and argdata are some nice binary[fn:binary] serialization formats.
 
 [fn:binary]
 To prevent the temptation to hand-edit configs,
