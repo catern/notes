@@ -7,14 +7,14 @@ which is loaded at runtime from the filesystem.
 At runtime, the configuration might not be there,
 or it might be the wrong configuration,
 or the wrong configuration version,
-containing newer or older configuration parameters that don't match the software version.
+containing newer or older configuration values that don't match the software version.
 
 The same issues are seen when dynamically linking libraries.[fn:dynlibs]
 With libraries, we can use static linking (or equivalent techniques[fn:nix]) to avoid these issues.
 A statically linked executable has fixed libraries specified at build time,
 and such an executable cannot fail because the libraries are missing or the wrong version.
 
-We can eliminate the listed issues with "dynamically linked configuration"
+We can eliminate the listed issues with "dynamically linked" configuration
 by "statically linking" the configuration instead.
 The configuration and the software can be bound together
 into an executable that, when run, uses a fixed configuration specified in advance.
@@ -26,15 +26,15 @@ The simplest approach is,
 when writing a piece of software,
 to provide a library interface rather than (or in addition to) an executable interface.
 
-A typical piece of software comes with an executable which starts up,
+A typical piece of software comes with a generic executable which starts up,
 reads some configuration files,
 and calls a function to run the real heart of the program,
 passing values parsed out of the configuration files.
 
-To statically link the configuration, we get rid of that hardcoded generic executable.
+To statically link the configuration, we can get rid of that generic executable.
 Instead, we make our own custom executable,
 which directly calls the function that makes up the heart of the program,
-passing arguments which describe the desired configuration.
+passing arguments which describe our desired configuration.
 This gives us an executable with statically linked configuration.
 
 Instead of having one configuration file per environment we wish to run in,
@@ -45,14 +45,16 @@ we just deploy and run the executable specific to that environment.
 ** Richly typed
 Besides the advantages of static linking,
 this style also naturally lends itself to richly typed[fn:richly_typed] configuration.
+
 Instead of writing a configuration file in JSON, YAML, or some other format,
 which can easily have mistakes which will only be caught at configuration load time,
 we can write configuration in our normal richly typed language.
 For example, instead of using a string to indicate which mode some component should run in,
-we can use an enum - and be sure that the enum is valid.
+we can use an enum - and have a compile-time guarantee that the enum is valid.
 ** Abstracted and shared
 This style also makes it easy to abstract over configuration,
 and share it between multiple environments.
+
 We can store our shared configurations as data and functions in libraries,
 and import and reuse those libraries from each executable
 just as we would share any other component.[fn:language_libraries]
@@ -60,12 +62,14 @@ just as we would share any other component.[fn:language_libraries]
 We can also have dynamic behavior if we choose to:
 We can write code to inspect the environment and verify that it matches expectations,
 or decide dynamically what configuration is best based on discovered details.
+We could even make our own custom config files.
 ** Multi-language
 This doesn't require that we do everything in the same language, either.
 If we have, for example, some software in C,
 we can call that from an executable written in Python;
 we can perform the annoying configuration details in a higher-level language
 before passing the completed configuration down to C through a Python binding.
+
 Or, in the most general case, we can have our executable in language A
 serialize the configuration in some format[fn:serialization] and pass it directly over stdin[fn:getopt]
 to a stub executable written in language B which we exec.
