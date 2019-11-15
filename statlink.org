@@ -43,12 +43,12 @@ Instead of separately thinking about deployment of our configuration and deploym
 we just deploy and run the executable specific to that environment.
 
 Besides the advantages of static linking,
-this style also naturally lends itself to statically typed configuration.
+this style also naturally lends itself to richly typed[fn:richly_typed] configuration.
 Instead of writing a configuration file in JSON, YAML, or some other format,
 which can easily have mistakes which will only be caught at configuration load time,
-we can write configuration in our normal statically typed language.
+we can write configuration in our normal richly typed language.
 For example, instead of using a string to indicate which mode some component should run in,
-we can use an enum - and be statically sure that the enum is valid.
+we can use an enum - and be sure that the enum is valid.
 
 This style also makes it easy to abstract over configuration,
 and share it between multiple environments.
@@ -76,12 +76,12 @@ or might have been replaced by a different incompatible version or different ser
 We have no certainty that the port in the configuration is correct.
 
 We can statically link these processes by generalizing the same solution we used for configuration:
-Write a program which, instead of starting up one piece of software with some static configuration,
+Write a program which, instead of starting up one piece of software with configuration,
 starts up multiple pieces of software, configuring them to talk to each other.
 This single parent program can straightforwardly establish a TCP connection or a pipe
 and pass each half of that connection down to different components it starts.[fn:fd_passing]
 In this way, we can transform a dynamic dependency on the possibly-incorrect open environment,
-into a static, guaranteed dependency provided by a single closed program.
+into a static dependency provided by a single closed program.
 
 I've used all these techniques and found them very effective at reducing complexity.
 In the long run,
@@ -111,6 +111,10 @@ meaning the deployment experience is much like static linking.
 This is in some sense "morally" static linking,
 even though it is technically dynamic linking.
 This is mostly irrelevant to us here, in any case.
+
+[fn:richly_typed]
+"Richly typed" languages are also called "statically typed" languages,
+but I don't want to overload the word "static" too much in this article.
 
 [fn:language_libraries]
 To be clear, we're talking about using language-level libraries.
@@ -149,9 +153,8 @@ this is most obvious if you have, say, a file called "-rf" and you call "rm *".
 If you use a decent serialization format instead of traditional getopt and its cousins,
 this problem goes away.
 
-[fn:1] DEFINITION NOT FOUND.
-
 [fn:fd_passing]
 In Unix, any file descriptor (which includes sockets) can be passed down to a child process
 and used by that child process.
 So, a parent process can create some sockets, and then pass them down to its children.
+
