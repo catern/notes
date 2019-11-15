@@ -1,5 +1,6 @@
 #+title: Statically link your configuration
 
+* Dynamically linked configuration is loaded at runtime from the filesystem
 Most software "dynamically links" its configuration.
 The configuration is written into a configuration file,
 which is loaded at runtime from the filesystem.
@@ -10,30 +11,28 @@ containing newer or older configuration parameters that don't match the software
 
 The same issues are seen when dynamically linking libraries.[fn:dynlibs]
 With libraries, we can use static linking (or equivalent techniques[fn:nix]) to avoid these issues.
+A statically linked executable has fixed libraries specified at build time,
+and such an executable cannot fail because the libraries are missing or the wrong version.
 
-We can take inspiration from statically linking libraries
-and apply equivalent techniques to solve our issues with configuration.
+We can eliminate the listed issues with "dynamically linked configuration"
+by "statically linking" the configuration instead.
 The configuration and the software can be bound together
-into an executable that, when run, uses a fixed configuration specified in advance,
-rather than looked up at runtime in the filesystem.
+into an executable that, when run, uses a fixed configuration specified in advance.
 This executable can't have the configuration issues we mentioned above;
-it shares much of the advantages of static linking in general.
-
-* Statically link configuration by writing custom executables
+it shares much of the advantages and disadvantages of static linking in general.
+* Statically link configuration by building custom executables
 How can we statically link our configuration?
-It turns out to be easier and more natural than statically linking libraries.
-And it can be done in a way that preserves all the features of a "dynamically linked" configuration,
-like having different configurations for different environments.
-There are many ways,
-but if we're writing a program from scratch,
-the easiest is to write that program as a function rather than as an executable.
+The simplest approach is,
+when writing a piece of software,
+to provide a library interface rather than (or in addition to) an executable interface.
 
-A typical executable program has a main function which starts up,
+A typical piece of software comes with an executable which starts up,
 reads some configuration files,
-and then calls a function to run the real heart of the program,
+and calls a function to run the real heart of the program,
 passing values parsed out of the configuration files.
-To statically link the configuration, we just get rid of that hardcoded main function.
-Instead, we make our own executable with its own main function,
+
+To statically link the configuration, we get rid of that hardcoded generic executable.
+Instead, we make our own custom executable,
 which directly calls the function that makes up the heart of the program,
 passing arguments which describe the desired configuration.
 This gives us an executable with statically linked configuration.
@@ -42,7 +41,6 @@ Instead of having one configuration file per environment we wish to run in,
 we can have one executable per environment we wish to run in.
 Instead of separately thinking about deployment of our configuration and deployment of our executable,
 we just deploy and run the executable specific to that environment.
-
 * Further advantages of statically linked configuration
 ** Richly typed
 Besides the advantages of static linking,
