@@ -88,23 +88,8 @@ In the long run,
 more information about programs must become statically visible
 if we are to create simple and correct large scale systems.
 "Statically linking" configuration is one part of that trend.
+
 * Footnotes
-
-[fn:language_libraries]
-To be clear, we're talking about using language-level libraries.
-For example, in Python one could have a library with shared configuration
-which is imported with "import" from several different executable toplevels
-which all share the configuration from that library,
-with tweaks for their specific needs.
-No different from a normal library.
-
-[fn:nix]
-Some package managers, such as Nix, technically use dynamically linked libraries,
-but the packaging is set up in such a way that the dynamically linked libraries are constant and immutable,
-meaning the deployment experience is much like static linking.
-This is in some sense "morally" static linking,
-even though it is technically dynamic linking.
-This is mostly irrelevant to us here, in any case.
 
 [fn:dynlibs]
 # TODO talk about the issues of dynamic linking in more depth?
@@ -119,13 +104,24 @@ also doesn't really apply for most configuration scenarios.
 I think [[https://nixos.org/~eelco/pubs/phd-thesis.pdf#page=178][section 7.1.1 of the Nix thesis]] has a nice, concise summary of some issues
 about static and dynamic linking.
 
+[fn:nix]
+Some package managers, such as Nix, technically use dynamically linked libraries,
+but the packaging is set up in such a way that the dynamically linked libraries are constant and immutable,
+meaning the deployment experience is much like static linking.
+This is in some sense "morally" static linking,
+even though it is technically dynamic linking.
+This is mostly irrelevant to us here, in any case.
+
+[fn:language_libraries]
+To be clear, we're talking about using language-level libraries.
+For example, in Python one could have a library with shared configuration
+which is imported with "import" from several different executable toplevels
+which all share the configuration from that library,
+with tweaks for their specific needs.
+No different from a normal library.
+
 [fn:serialization] 
 Protobuf and argdata are some nice binary[fn:binary] serialization formats.
-
-[fn:fd_passing]
-In Unix, any file descriptor (which includes sockets) can be passed down to a child process
-and used by that child process.
-So, a parent process can create some sockets, and then pass them down to its children.
 
 [fn:binary]
 To prevent the temptation to hand-edit configs,
@@ -152,3 +148,10 @@ this is most obvious if you have, say, a file called "-rf" and you call "rm *".
 
 If you use a decent serialization format instead of traditional getopt and its cousins,
 this problem goes away.
+
+[fn:1] DEFINITION NOT FOUND.
+
+[fn:fd_passing]
+In Unix, any file descriptor (which includes sockets) can be passed down to a child process
+and used by that child process.
+So, a parent process can create some sockets, and then pass them down to its children.
