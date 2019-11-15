@@ -1,6 +1,94 @@
-#+title: Post about not using bash or config files
+#+title: Statically link your configuration
 
-Don't use bash or config files.
+* main
+Most software "dynamically links" its configuration.
+The configuration is written into a configuration file,
+which is loaded at runtime from the filesystem.
+At runtime, the configuration might not be there,
+or it might be the wrong configuration,
+or the wrong configuration version,
+containing newer or older configuration parameters that don't match the software version.
+
+The same issues are seen when dynamically linking libraries.[fn:dynlibs]
+With libraries, we can use static linking (or equivalent techniques[fn:nix]) to avoid these issues.
+
+We can take inspiration from statically linking libraries
+and apply equivalent techniques to solve our issues with configuration.
+The configuration and the software can be bound together
+into an executable that, when run, uses a fixed configuration specified in advance,
+rather than looked up at runtime in the filesystem.
+This executable can't have the configuration issues we mentioned above;
+it shares much of the advantages of static linking in general.
+
+How can we statically link our configuration?
+It turns out to be easier and more natural than statically linking libraries.
+And it can be done in a way that preserves all the features of a "dynamically linked" configuration,
+like having different configurations for different environments.
+There are many ways,
+but if we're writing a program from scratch,
+the easiest is to write that program as a function rather than as an executable.
+
+A typical executable program has a main function which starts up,
+reads some configuration files,
+and then calls a function to run the real heart of the program,
+passing values parsed out of the configuration files.
+To statically link the configuration, we just get rid of that hardcoded main function.
+Instead, we make our own executable with its own main function,
+which directly calls the function that makes up the heart of the program,
+passing arguments which describe the desired configuration.
+This gives us an executable with statically linked configuration.
+
+Instead of having one configuration file per environment we wish to run in,
+we can have one executable per environment we wish to run in.
+Instead of separately thinking about deployment of our configuration and deployment of our executable,
+we just deploy and run the executable specific to that environment.
+
+Besides the advantages of static linking,
+this style also naturally lends itself to statically typed configuration.
+Instead of writing a configuration file in JSON, YAML, or some other format,
+which can easily have mistakes which will only be caught at configuration load time,
+we can write configuration in our normal statically typed language.
+For example, instead of using a string to indicate which mode some component should run in,
+we can use an enum - and be statically sure that the enum is valid.
+
+This style also makes it easy to abstract over configuration,
+and share it between multiple environments.
+We can store our shared configurations as data and functions in libraries,
+and import and reuse those libraries from each executable
+just as we would share any other component.[fn:language_libraries]
+We can also have dynamic behavior if we choose to:
+We can write code to inspect the environment and verify that it matches expectations,
+or decide dynamically what configuration is best based on discovered details.
+
+This doesn't require that we do everything in the same language, either.
+If we have, for example, some software in C,
+we can call that from an executable written in Python;
+we can perform the annoying configuration details in a higher-level language
+before passing the completed configuration down to C through a Python binding.
+Or, in the most general case, we can have our executable in language A
+serialize the configuration in some format[fn:serialization] and pass it directly over stdin
+to a stub executable written in language B which we exec.
+
+We can also generalize this notion of "static linking" further, to multi-process, multi-program systems.
+In many systems, we start up one process,
+and it is "dynamically linked" to other processes by connecting to some port specified in its configuration.
+The service listening on that port might not have started,
+or might have been replaced by a different incompatible version or different service entirely.
+We have no certainty that the port in the configuration is correct.
+
+We can statically link these processes by generalizing the same solution we used for configuration:
+Write a program which, instead of starting up one piece of software with some static configuration,
+starts up multiple pieces of software, configuring them to talk to each other.
+This single parent program can straightforwardly establish a TCP connection or a pipe
+and pass each half of that connection down to different components it starts.[fn:fd_passing]
+In this way, we can transform a dynamic dependency on the possibly-incorrect open environment,
+into a static, guaranteed dependency provided by a single closed program.
+
+I've used all these techniques and found them very effective at reducing complexity.
+In the long run,
+more information about programs must become statically visible
+if we are to create simple and correct large scale systems.
+"Statically linking" configuration is one part of that trend.
 * stop using "configuration files"!
 Most programs run in more than one environment;
 even if they only ever run in one environment, it's good practice to have at least a little abstraction,
@@ -169,317 +257,6 @@ but the unnecessary differences in configuring them are removed.
 
  that's also a relatively advanced notion.
  maybe we should stick to what we have.
-* try 2
-Many pieces of software use configuration files.
-The software is distributed as an executable,
-which, when invoked, locates a configuration file in the filesystem and parses it.
-This may involving some computation to evaluate the language the configuration file is written in.
-Then the software uses the values read from the configuration file to change its behavior.
-
-The user configures the software by writing a configuration file,
-locating the file in a place that the software will read,
-and running the executable.
-Example configuration files may be distributed with the software, which the user may use as a basis.
-Advanced or large-scale users
-can write programs to generate configuration files,
-one per configuration they wish to use.
-By sharing code in these programs,
-users can share configuration between different configuration files for different environments.
-
-Some examples of software written in this way are Apache HTTPD, GNU Emacs, and bash.
-
-A minority of software takes a different approach.
-Instead of being distributed as an executable which reads a configuration file,
-the software is distributed as a library.
-To use the software, a top-level executable is written in the appropriate programming language,
-loading one or more functions from the software's library, and calling them;
-typically, these functions will never return.
-Configuration is achieved by passing appropriate arguments to those functions.
-
-Some examples of software written in this way are the Xmonad tiling window manager,
-(not stumpwm because it's emacs-style)
-(insert more examples here - I'm sure there are some, might need to think hard - some things more library-ish?).
-
-The user configures the software by writing a top-level containing their desired configuration,
-and running the top-level.
-Example top-levels may be distributed with the software, which the user may use as a basis.
-
-Advanced or large-scale users
-can have many top-levels,
-one per configuration they wish to use.
-By sharing code in these top-levels,
-users can share configuration between different top-levels for different environments.
-
-# WRONG, this isn't a unique advantage
-These top-levels can also have dynamic behavior.
-A user can write a single top-level which dynamically (by running user code) discovers the correct configuration for their environment.
-The top-level can have some configuration determined statically, and other configuration determined dynamically,
-as is appropriate for a user's specific environment.
-# EEP EEP EEP! We can also have dynamic behavior with configuration files!
-# They can be evaluated and do things wackily!
-# ok so that's not too good
-# ok so that's not a difference after all.
-# we can even open sockets dynamically, hmm, dang.
-# well, we can still more easily group together common config with the top-level than with the embedded thing.. right?
-# maybe...?
-# not necessarily, an easy environment like Emacs, where you have whatever libraries you want,
-# allows much sharing easily.
-# hm.
-# but it's clearly intuitive that having a top-level which invokes multiple,
-# is easier to have... *dynamic* sharing, I guess,
-# between things.
-# right so we can 1. have dynamic things and 2. have shared things which are static,
-# but we can't have 3. dynamic things which are shared.
-# because we can't invoke multiple from the same language program with config files,
-# which we can do when we control the top-level.
-# very clear ok yes clear.
-# what about the, uhh... hmm. scale thing? point 1?
-# well, how would I manage a million emacs instances or something?
-# I guess I'd have some init.els which are one way,
-# with some aspects dynamically done, and...
-# yeah it seems relatively simple and achievable. so scale thing isn't valid either.
-# and what about the dependency on config files thing?
-# that's kind of an issue of mutable global state isn't it? yeah hmm.
-# global state makes it awkward to have multiple instances.
-# the top-level makes it easy.
-# this is the same thing as with sharing dynamic things between multiple instances in the same top-level?
-# hmm. interesting.
-# right I can say "the config is here"
-# but if it's separate, I don't know what that means
-# it's global mutable state, referred to by something else, so changing it would affect elswehere
-
-We can achieve that also with configuration files by synthesizing the two approaches.
-# generate config file on the fly and specify it by command line argument
-
-Or, advanced users can write a single top-level which dynamically discovers the correct configuration for their environment.
-Or, they can have a hybrid between these two extremes of "static" and "dynamic" configuration.
-
-1. clear upgrade to large scale - small scale and large scale ar identical, programmatic
-2. easy move between static and dynamic
-3. cleaner dependency story on config files hmmmmm
-
-hmmmmmm so if the application has a configuration file then we can just bind the configuration file wrapped around it.
-which hmmmmmmmmm we should highlight as a synthesis
-first we highlight that synthesis
-then we list all the advantages of the synthesis/dynamic style.
-
-
-these top-levels may share code through a domain-specific library customized to their specific needs.
-Or, they can write a single 
-Or, they can have a hybrid between these two extremes of "static" and "dynamic" configuration.
-
-Importantly, when software is configured programmatically in this way,
-"static" configuration as supported by configuration files becomes just a special case.
-Full dynamic configuration is possible.
-
-
-can write code to generate configuration files,
-one per configuration they wish to use,
-using templating or serialization libraries.
-
-Using them as a basis, a user will write their 
-and run their top-level to use the software.
-
-Advanced or large-scale users
-can have many top-levels,
-one per configuration they wish to use,
-and can develop their own abstractions on top of the software's interface
-to share code using the capabilities of their chosen language.
-
-The top-level locates the program using the language's normal dependency mechanisms.
-
-The user writes code which uses the library;
-the user's code is a top-level executable which is executed on its own.
-
-The user's top-level executable locates the program using the language's normal dependency mechanisms,
-and passes configuration values as arguments to the program by invoking it as a function.
-
-For the user to configure the program,
-they write a top-level that provides their desired configuration values.
-Advanced or large-scale users
-can have many top-levels, one per environment they want to run within,
-and can develop their own abstractions on top of the program's native interface
-using the abstraction capabilities of their language.
-
-** abstract type theory pontificating
-Fundamentally the difference is whether we have implicit side-effects
-(reading configuration files),
-or an explicitly typed system,
-(passing down configuration through a typed interface).
-
-One could propose a system
-where programs were annotated with the configuration files they read,
-and even the formats and dependencies of those configuration files.
-Then we could create abstractions to simplify and share configuration,
-and be statically sure that they are correct.
-One might compare this to the development of effect systems in programming language theory,
-where functions can be annotated with the side-effects they perform.
-
-But there's a simpler way to achieve an explicitly typed system,
-without having to introduce this complicated new annotation functionality in our systems.
-Just make the need for configuration (or the need to perform effects) explicit
-by making it explicit in the type of the function being invoked:
-in the types of the arguments.
-
-* try 3
-title: Use static configuration, not dynamic
-
-Most software reads its configuration from somewhere at runtime.
-
-Instead, our first choice should be to hard-code that configuration into the software at build-time.
-
-While it's possible, with enough effort, to statically type the configuration read at runtime,
-it's much easier if that composition of "software" and "configuration" happens at build time,
-and is static at execution time.
-Then we can type-check that composition using normal means.
-
-Multiple configurations can be achieved through multiple executables;
-or, at larger scale, reintroduction of dynamism, using inspection of the environment to decide how to be configured.
-
-Most software buries the "configuration" component inside the software.
-You start the software, and it looks for configuration in some place,
-and reads it and parses it.
-
-Instead, the "configuration" should be the interface for starting the software in the first place.
-To run the software, you should provide a configuration,
-and in this way allow static types to work.
-
-Ultimately, it's a question of whether we pass configuration as a statically-known function argument,
-or as statically-unknown implicit data in the global environment which is read dynamically.
-The latter is a popular, traditional approach
-but it sacrifices the benefits of static typing.
-If we like static typing
-so we should pass configuration statically, instead of dynamically.
-
-
-# don't say dynamic so much though?
-# because we can be dynamic.
-# we are just doing static composition,
-# instead of dynamic composition,
-# but we can still dynamically decide configuration values.
-
-In fact, static composition allows for *more* dynamism in configuration compared to the typical alternative.
-The composition happens in our normal programming language,
-which we can use to dynamically discover details about the environment
-and make configuration decisions that are appropriate for our use case.
-
-# of course we don't have to be dynamic if we don't want to, we can be fully static
-# maybe shouldn't say "allows for more dynamism", people will want static stuff
-
-where we would have 100 configuration files,
-now we have 100 executables.
-
-
-static composition instead of dynamic composition
-
-Configure software statically, not dynamically
-
-
-OK, ok, so really I want to say,
-"use static composition, not dynamic composition".
-
-That's the Nix philosophy.
-Stolen from Nix.
-
-Aha yes late static composition ok ok.
-
-okay
-
-"Static composition is good for configuration"
-
-borrow the Nix thesis terminology.
-
-* try 4
-title: Statically link your configuration
-
-Most software "dynamically links" its configuration.
-The configuration is written into a configuration file,
-which is loaded at runtime from the filesystem.
-At runtime, the configuration might not be there,
-or it might be the wrong configuration,
-or the wrong configuration version,
-containing newer or older configuration parameters that don't match the software version.
-
-The same issues are seen when dynamically linking libraries.[fn:dynlibs]
-With libraries, we can use static linking (or equivalent techniques[fn:nix]) to avoid these issues.
-
-We can take inspiration from statically linking libraries
-and apply equivalent techniques to solve our issues with configuration.
-The configuration and the software can be bound together
-into an executable that, when run, uses a fixed configuration specified in advance,
-rather than looked up at runtime in the filesystem.
-This executable can't have the configuration issues we mentioned above;
-it shares much of the advantages of static linking in general.
-
-How can we statically link our configuration?
-It turns out to be easier and more natural than statically linking libraries.
-And it can be done in a way that preserves all the features of a "dynamically linked" configuration,
-like having different configurations for different environments.
-There are many ways,
-but if we're writing a program from scratch,
-the easiest is to write that program as a function rather than as an executable.
-
-A typical executable program has a main function which starts up,
-reads some configuration files,
-and then calls a function to run the real heart of the program,
-passing values parsed out of the configuration files.
-To statically link the configuration, we just get rid of that hardcoded main function.
-Instead, we make our own executable with its own main function,
-which directly calls the function that makes up the heart of the program,
-passing arguments which describe the desired configuration.
-This gives us an executable with statically linked configuration.
-
-Instead of having one configuration file per environment we wish to run in,
-we can have one executable per environment we wish to run in.
-Instead of separately thinking about deployment of our configuration and deployment of our executable,
-we just deploy and run the executable specific to that environment.
-
-Besides the advantages of static linking,
-this style also naturally lends itself to statically typed configuration.
-Instead of writing a configuration file in JSON, YAML, or some other format,
-which can easily have mistakes which will only be caught at configuration load time,
-we can write configuration in our normal statically typed language.
-For example, instead of using a string to indicate which mode some component should run in,
-we can use an enum - and be statically sure that the enum is valid.
-
-This style also makes it easy to abstract over configuration,
-and share it between multiple environments.
-We can store our shared configurations as data and functions in libraries,
-and import and reuse those libraries from each executable
-just as we would share any other component.[fn:language_libraries]
-We can also have dynamic behavior if we choose to:
-We can write code to inspect the environment and verify that it matches expectations,
-or decide dynamically what configuration is best based on discovered details.
-
-This doesn't require that we do everything in the same language, either.
-If we have, for example, some software in C,
-we can call that from an executable written in Python;
-we can perform the annoying configuration details in a higher-level language
-before passing the completed configuration down to C through a Python binding.
-Or, in the most general case, we can have our executable in language A
-serialize the configuration in some format[fn:serialization] and pass it directly over stdin
-to a stub executable written in language B which we exec.
-
-We can also generalize this notion of "static linking" further, to multi-process, multi-program systems.
-In many systems, we start up one process,
-and it is "dynamically linked" to other processes by connecting to some port specified in its configuration.
-The service listening on that port might not have started,
-or might have been replaced by a different incompatible version or different service entirely.
-We have no certainty that the port in the configuration is correct.
-
-We can statically link these processes by generalizing the same solution we used for configuration:
-Write a program which, instead of starting up one piece of software with some static configuration,
-starts up multiple pieces of software, configuring them to talk to each other.
-This single parent program can straightforwardly establish a TCP connection or a pipe
-and pass each half of that connection down to different components it starts.[fn:fd_passing]
-In this way, we can transform a dynamic dependency on the possibly-incorrect open environment,
-into a static, guaranteed dependency provided by a single closed program.
-
-I've used all these techniques and found them very effective at reducing complexity.
-In the long run,
-more information about programs must become statically visible
-if we are to create simple and correct large scale systems.
-"Statically linking" configuration is one part of that trend.
 * abstract your python, don't just copy your config
 Now, the Python code that generates this config should certainly be *abstracted*.
 You should not just have a big Python file with a dictionary or something listing all the possible keys and values for configuration.
@@ -715,52 +492,12 @@ yet more code that you can just delete!
  ??
 ** no API configuration
  Pulumi stuff?
-* research
-oh I guess emacs is an example of,
-KIND of this.
 
-but it's very different from xmonad style,
-where you build the toplevel through explicit passing.
+ how's this interact? well. ummmm.
 
-emacs is configuration in the same way - set some global vars,
-define some stuff,
-just put it around in places and we use it.
+that's some dumb service thing and it is dumb and I don't like it.
 
-it's still inversion of control.
-
-I want to pass my data from the top, down!
-not have things look it up in global data!
-
-that is less typed, basically,
-if they look it up in a larger datastructure.
-
-passing down the data keeps it nicely typed.
-without having to make some crazy effect system.
-
-ok this is a nice insight but it's useless.
-
-except for making it clear that I really hate inversion of control
-
-yeah so emacs is an example of something I don't like;
-it reads a config file instead of the user writing the top-level.
-** getting rid of inversion of control by expressing path of computation in the type?
-hmm, could we fully get rid of inversion of control by like,
-having the type say exactly what the computation you need to perform is?
-
-like, um, someone might want to iterate a function 10 times,
-
-which you could enforce the caller doing for you, with the type.
-
-hm.
-
-well or, a function might want to look up some specific string in an environment say,
-which you could have the caller do
-(and make the looked-up string explicit in the argument type)
-
-yeah that's kind of interesting.
-
-and of course if we don't care about the path of computation then we can just have
-the bare type instead of the full path.
+you can't statlink them anyway
 * intersection
 between,
 the config is here.
@@ -1058,6 +795,70 @@ but that stinks anyway, this is statically composed instead of depending on the 
 no need to depend on that daemon running!
 
 hm
+
+** abstract type theory pontificating
+Fundamentally the difference is whether we have implicit side-effects
+(reading configuration files),
+or an explicitly typed system,
+(passing down configuration through a typed interface).
+
+One could propose a system
+where programs were annotated with the configuration files they read,
+and even the formats and dependencies of those configuration files.
+Then we could create abstractions to simplify and share configuration,
+and be statically sure that they are correct.
+One might compare this to the development of effect systems in programming language theory,
+where functions can be annotated with the side-effects they perform.
+
+But there's a simpler way to achieve an explicitly typed system,
+without having to introduce this complicated new annotation functionality in our systems.
+Just make the need for configuration (or the need to perform effects) explicit
+by making it explicit in the type of the function being invoked:
+in the types of the arguments.
+
+ACTUALLY this correponds to static linking being well-typed,
+and dynamic linking being untyped,
+because it doesn't show what the dependencies are on the environment.
+
+* final thoughts
+** ultimately why is static better than dynamic?
+because of the versioning and incompatible issues with dynamic,
+which makes it hard to do anything fancy.
+
+even though you can do all the same fancy things.
+it's just hard.
+with programming language written config and system daemons and such
+** emacs etc is actually an instance of dynamic linking config
+it's very different from xmonad style,
+where you build the toplevel through explicit passing.
+
+in emacs, you set some global vars,
+define some stuff,
+just put some config around in places and we use it.
+** static linking is statically typed, dynamic linking is dynamically typed
+because static linking gives a closed value - really it's lexically scoped.
+
+whereas dynamic linking has untyped environmental dependencies, on unmentioned dynvars
+** implicit parameters are like how logic works
+because you don't have to identify a specific proof, you just have that type and it's there
+** getting rid of inversion of control by expressing path of computation in the type?
+hmm, could we fully get rid of inversion of control by like,
+having the type say exactly what the computation you need to perform is?
+
+like, um, someone might want to iterate a function 10 times,
+
+which you could enforce the caller doing for you, with the type.
+
+hm.
+
+well or, a function might want to look up some specific string in an environment say,
+which you could have the caller do
+(and make the looked-up string explicit in the argument type)
+
+yeah that's kind of interesting.
+
+and of course if we don't care about the path of computation then we can just have
+the bare type instead of the full path.
 * Footnotes
 
 [fn:language_libraries]
