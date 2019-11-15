@@ -471,16 +471,16 @@ We have no certainty that the port in the configuration is correct.
 We can statically link these processes by generalizing the same solution we used for configuration:
 Write a program which, instead of starting up one piece of software with some static configuration,
 starts up multiple pieces of software, configuring them to talk to each other.
-This single parent program can straightforwardly establish a TCP connection
-and pass each half of that TCP connection down to different components it starts.[fn:fd_passing]
-In this way, we can statically guarantee that each component is connected to the correct service.
+This single parent program can straightforwardly establish a TCP connection or a pipe
+and pass each half of that connection down to different components it starts.[fn:fd_passing]
+In this way, we can transform a dynamic dependency on the possibly-incorrect open environment,
+into a static, guaranteed dependency provided by a single closed program.
 
+I've used all these techniques and found them very effective at reducing complexity.
 In the long run,
-more information must become statically visible
-if we are to make large scale systems.
-Extending "static linking" to configuration is one instance of this,
-but there are many other ways in which we can make information statically visible,
-and use it to decrease complexity and improve correctness of our systems.
+more information about programs must become statically visible
+if we are to create simple and correct large scale systems.
+"Statically linking" configuration is one part of that trend.
 * abstract your python, don't just copy your config
 Now, the Python code that generates this config should certainly be *abstracted*.
 You should not just have a big Python file with a dictionary or something listing all the possible keys and values for configuration.
