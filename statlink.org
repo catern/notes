@@ -19,6 +19,7 @@ rather than looked up at runtime in the filesystem.
 This executable can't have the configuration issues we mentioned above;
 it shares much of the advantages of static linking in general.
 
+* Statically link configuration by writing custom executables
 How can we statically link our configuration?
 It turns out to be easier and more natural than statically linking libraries.
 And it can be done in a way that preserves all the features of a "dynamically linked" configuration,
@@ -42,6 +43,7 @@ we can have one executable per environment we wish to run in.
 Instead of separately thinking about deployment of our configuration and deployment of our executable,
 we just deploy and run the executable specific to that environment.
 
+* Further advantages of statically linked configuration
 Besides the advantages of static linking,
 this style also naturally lends itself to richly typed[fn:richly_typed] configuration.
 Instead of writing a configuration file in JSON, YAML, or some other format,
@@ -68,6 +70,7 @@ Or, in the most general case, we can have our executable in language A
 serialize the configuration in some format[fn:serialization] and pass it directly over stdin[fn:getopt]
 to a stub executable written in language B which we exec.
 
+* Multi-process systems
 We can also generalize this notion of "static linking" further, to multi-process, multi-program systems.
 In many systems, we start up one process,
 and it is "dynamically linked" to other processes by connecting to some port specified in its configuration.
@@ -83,6 +86,7 @@ and pass each half of that connection down to different components it starts.[fn
 In this way, we can transform an unresolved dependency on the possibly-incorrect open environment,
 into a guaranteed dependency provided by a single closed program.
 
+* Conclusion
 I've used all these techniques and found them very effective at reducing complexity.
 In the long run,
 more information about programs must become statically visible
