@@ -394,7 +394,7 @@ title: Statically link your configuration
 
 Most software "dynamically links" its configuration.
 The configuration is written into a configuration file,
-which is loaded at runtime from some place in the filesystem.
+which is loaded at runtime from the filesystem.
 At runtime, the configuration might not be there,
 or it might be the wrong configuration,
 or the wrong configuration version,
@@ -430,7 +430,7 @@ passing arguments which describe the desired configuration.
 This gives us an executable with statically linked configuration.
 
 Instead of having one configuration file per environment we wish to run in,
-we have one executable per environment we wish to run in.
+we can have one executable per environment we wish to run in.
 Instead of separately thinking about deployment of our configuration and deployment of our executable,
 we just deploy and run the executable specific to that environment.
 
@@ -444,10 +444,9 @@ we can use an enum - and be statically sure that the enum is valid.
 
 This style also makes it easy to abstract over configuration,
 and share it between multiple environments.
-With traditional configuration files,
-we would use complex templating to generate configuration files;
-by writing our own main functions and executable,
-we can store our shared configurations in libraries that we import and reuse.
+We can store our shared configurations as data and functions in libraries,
+and import and reuse those libraries from each executable
+just as we would share any other component.[fn:language_libraries]
 We can also have dynamic behavior if we choose to:
 We can write code to inspect the environment and verify that it matches expectations,
 or decide dynamically what configuration is best based on discovered details.
@@ -1060,6 +1059,14 @@ no need to depend on that daemon running!
 
 hm
 * Footnotes
+
+[fn:language_libraries]
+To be clear, we're talking about using language-level libraries.
+For example, in Python one could have a library with shared configuration
+which is imported with "import" from several different executable toplevels
+which all share the configuration from that library,
+with tweaks for their specific needs.
+No different from a normal library.
 
 [fn:nix]
 Some package managers, such as Nix, technically use dynamically linked libraries,
