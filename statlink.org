@@ -80,8 +80,8 @@ Write a program which, instead of starting up one piece of software with configu
 starts up multiple pieces of software, configuring them to talk to each other.
 This single parent program can straightforwardly establish a TCP connection or a pipe
 and pass each half of that connection down to different components it starts.[fn:fd_passing]
-In this way, we can transform a dynamic dependency on the possibly-incorrect open environment,
-into a static dependency provided by a single closed program.
+In this way, we can transform an unresolved dependency on the possibly-incorrect open environment,
+into a guaranteed dependency provided by a single closed program.
 
 I've used all these techniques and found them very effective at reducing complexity.
 In the long run,
