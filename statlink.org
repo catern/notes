@@ -1,4 +1,4 @@
-#+title: Statically link your configuration
+#+title: DRAFT: Statically link your configuration
 
 * Dynamically linked configuration is loaded at runtime from the filesystem
 Most software "dynamically links" its configuration.
@@ -74,21 +74,26 @@ Or, in the most general case, we can have our executable in language A
 serialize the configuration in some format[fn:serialization] and pass it directly over stdin[fn:getopt]
 to a stub executable written in language B which we exec.
 * Multi-process systems
-We can also generalize this notion of "static linking" further, to multi-process, multi-program systems.
+** "Dynamically linked" services
+We can also generalize this notion of "static linking" further, to multi-process systems.
 In many systems, we start up one process,
-and it is "dynamically linked" to other processes by connecting to some port specified in its configuration.
+and it is "dynamically linked" to some services by connecting to some port specified in its configuration.
 The service listening on that port might not have started,
 or might have been replaced by a different incompatible version or different service entirely.
-We have no certainty that the port in the configuration is correct.
+We have no certainty that the port in the configuration is pointing to a correct, running service;
+this is much the same issue as with dynamically linked libraries.
+** "Statically linked" services
+We can statically link these services by generalizing the same solution we used for configuration.
+So far we have written programs which start up one process with configuration;
+now we write a program to start up multiple processes, configuring them to talk to each other.
 
-We can statically link these processes by generalizing the same solution we used for configuration:
-Write a program which, instead of starting up one piece of software with configuration,
-starts up multiple pieces of software, configuring them to talk to each other.
+If a process depends on some service, we can start up another process to provide that service.
 This single parent program can straightforwardly establish a TCP connection or a pipe
-and pass each half of that connection down to different components it starts.[fn:fd_passing]
+and pass each half of that connection down to different processes it starts.[fn:fd_passing]
 In this way, we can transform an unresolved dependency on the possibly-incorrect open environment,
 into a guaranteed dependency provided by a single closed program.
 
+The interface required for this are a natural development from "statically linked" configuration.
 * Conclusion
 I've used all these techniques and found them very effective at reducing complexity.
 In the long run,
@@ -165,4 +170,3 @@ this problem goes away.
 In Unix, any file descriptor (which includes sockets) can be passed down to a child process
 and used by that child process.
 So, a parent process can create some sockets, and then pass them down to its children.
-
