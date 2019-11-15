@@ -44,6 +44,7 @@ Instead of separately thinking about deployment of our configuration and deploym
 we just deploy and run the executable specific to that environment.
 
 * Further advantages of statically linked configuration
+** Richly typed
 Besides the advantages of static linking,
 this style also naturally lends itself to richly typed[fn:richly_typed] configuration.
 Instead of writing a configuration file in JSON, YAML, or some other format,
@@ -51,16 +52,17 @@ which can easily have mistakes which will only be caught at configuration load t
 we can write configuration in our normal richly typed language.
 For example, instead of using a string to indicate which mode some component should run in,
 we can use an enum - and be sure that the enum is valid.
-
+** Abstracted and shared
 This style also makes it easy to abstract over configuration,
 and share it between multiple environments.
 We can store our shared configurations as data and functions in libraries,
 and import and reuse those libraries from each executable
 just as we would share any other component.[fn:language_libraries]
+** Dynamic behavior
 We can also have dynamic behavior if we choose to:
 We can write code to inspect the environment and verify that it matches expectations,
 or decide dynamically what configuration is best based on discovered details.
-
+** Multi-language
 This doesn't require that we do everything in the same language, either.
 If we have, for example, some software in C,
 we can call that from an executable written in Python;
@@ -69,7 +71,6 @@ before passing the completed configuration down to C through a Python binding.
 Or, in the most general case, we can have our executable in language A
 serialize the configuration in some format[fn:serialization] and pass it directly over stdin[fn:getopt]
 to a stub executable written in language B which we exec.
-
 * Multi-process systems
 We can also generalize this notion of "static linking" further, to multi-process, multi-program systems.
 In many systems, we start up one process,
@@ -92,6 +93,7 @@ In the long run,
 more information about programs must become statically visible
 if we are to create simple and correct large scale systems.
 "Statically linking" configuration is one part of that trend.
+# TODO I could put an example here, that would be nice.
 
 * Footnotes
 
