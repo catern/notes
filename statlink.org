@@ -1,0 +1,154 @@
+#+title: Statically link your configuration
+
+Most software "dynamically links" its configuration.
+The configuration is written into a configuration file,
+which is loaded at runtime from the filesystem.
+At runtime, the configuration might not be there,
+or it might be the wrong configuration,
+or the wrong configuration version,
+containing newer or older configuration parameters that don't match the software version.
+
+The same issues are seen when dynamically linking libraries.[fn:dynlibs]
+With libraries, we can use static linking (or equivalent techniques[fn:nix]) to avoid these issues.
+
+We can take inspiration from statically linking libraries
+and apply equivalent techniques to solve our issues with configuration.
+The configuration and the software can be bound together
+into an executable that, when run, uses a fixed configuration specified in advance,
+rather than looked up at runtime in the filesystem.
+This executable can't have the configuration issues we mentioned above;
+it shares much of the advantages of static linking in general.
+
+How can we statically link our configuration?
+It turns out to be easier and more natural than statically linking libraries.
+And it can be done in a way that preserves all the features of a "dynamically linked" configuration,
+like having different configurations for different environments.
+There are many ways,
+but if we're writing a program from scratch,
+the easiest is to write that program as a function rather than as an executable.
+
+A typical executable program has a main function which starts up,
+reads some configuration files,
+and then calls a function to run the real heart of the program,
+passing values parsed out of the configuration files.
+To statically link the configuration, we just get rid of that hardcoded main function.
+Instead, we make our own executable with its own main function,
+which directly calls the function that makes up the heart of the program,
+passing arguments which describe the desired configuration.
+This gives us an executable with statically linked configuration.
+
+Instead of having one configuration file per environment we wish to run in,
+we can have one executable per environment we wish to run in.
+Instead of separately thinking about deployment of our configuration and deployment of our executable,
+we just deploy and run the executable specific to that environment.
+
+Besides the advantages of static linking,
+this style also naturally lends itself to statically typed configuration.
+Instead of writing a configuration file in JSON, YAML, or some other format,
+which can easily have mistakes which will only be caught at configuration load time,
+we can write configuration in our normal statically typed language.
+For example, instead of using a string to indicate which mode some component should run in,
+we can use an enum - and be statically sure that the enum is valid.
+
+This style also makes it easy to abstract over configuration,
+and share it between multiple environments.
+We can store our shared configurations as data and functions in libraries,
+and import and reuse those libraries from each executable
+just as we would share any other component.[fn:language_libraries]
+We can also have dynamic behavior if we choose to:
+We can write code to inspect the environment and verify that it matches expectations,
+or decide dynamically what configuration is best based on discovered details.
+
+This doesn't require that we do everything in the same language, either.
+If we have, for example, some software in C,
+we can call that from an executable written in Python;
+we can perform the annoying configuration details in a higher-level language
+before passing the completed configuration down to C through a Python binding.
+Or, in the most general case, we can have our executable in language A
+serialize the configuration in some format[fn:serialization] and pass it directly over stdin[fn:getopt]
+to a stub executable written in language B which we exec.
+
+We can also generalize this notion of "static linking" further, to multi-process, multi-program systems.
+In many systems, we start up one process,
+and it is "dynamically linked" to other processes by connecting to some port specified in its configuration.
+The service listening on that port might not have started,
+or might have been replaced by a different incompatible version or different service entirely.
+We have no certainty that the port in the configuration is correct.
+
+We can statically link these processes by generalizing the same solution we used for configuration:
+Write a program which, instead of starting up one piece of software with some static configuration,
+starts up multiple pieces of software, configuring them to talk to each other.
+This single parent program can straightforwardly establish a TCP connection or a pipe
+and pass each half of that connection down to different components it starts.[fn:fd_passing]
+In this way, we can transform a dynamic dependency on the possibly-incorrect open environment,
+into a static, guaranteed dependency provided by a single closed program.
+
+I've used all these techniques and found them very effective at reducing complexity.
+In the long run,
+more information about programs must become statically visible
+if we are to create simple and correct large scale systems.
+"Statically linking" configuration is one part of that trend.
+* Footnotes
+
+[fn:language_libraries]
+To be clear, we're talking about using language-level libraries.
+For example, in Python one could have a library with shared configuration
+which is imported with "import" from several different executable toplevels
+which all share the configuration from that library,
+with tweaks for their specific needs.
+No different from a normal library.
+
+[fn:nix]
+Some package managers, such as Nix, technically use dynamically linked libraries,
+but the packaging is set up in such a way that the dynamically linked libraries are constant and immutable,
+meaning the deployment experience is much like static linking.
+This is in some sense "morally" static linking,
+even though it is technically dynamic linking.
+This is mostly irrelevant to us here, in any case.
+
+[fn:dynlibs]
+# TODO talk about the issues of dynamic linking in more depth?
+Dynamic linking libraries has substantial advantages too, of course.
+But they mostly don't apply in the case of configuration.
+
+The most important advantage is the efficiency benefits,
+which don't apply in the case of configuration.
+The ability to upgrade every program using a library at once
+also doesn't really apply for most configuration scenarios.
+
+I think [[https://nixos.org/~eelco/pubs/phd-thesis.pdf#page=178][section 7.1.1 of the Nix thesis]] has a nice, concise summary of some issues
+about static and dynamic linking.
+
+[fn:serialization] 
+Protobuf and argdata are some nice binary[fn:binary] serialization formats.
+
+[fn:fd_passing]
+In Unix, any file descriptor (which includes sockets) can be passed down to a child process
+and used by that child process.
+So, a parent process can create some sockets, and then pass them down to its children.
+
+[fn:binary]
+To prevent the temptation to hand-edit configs,
+(instead you should just edit the Python code that generates the config -
+ideally extending the high-level code to support your new use case)
+prefer to use binary serialization for your config.
+
+This also discourages commiting the configs to source control.
+
+You can pass down your serialized binary config through command line arguments,
+if you find some serialization format which eliminates null bytes.
+That would allow you to nicely avoid an unnecessary pipe;
+unfortunately Unix pointlessly requires arguments to not have null bytes,
+but it has no other restrictions.
+
+[fn:getopt]
+Note I say passing down config via serialization over stdin (or some other pipe).
+Don't pass down your config via command line arguments in the traditional Unix style.
+
+Traditional Unix command line arguments
+(e.g. flags like -t -h -is, mixed with filenames, as well as --these --and=this),
+are notoriously vulnerable to confusing "flags" with "values" like filenames;
+this is most obvious if you have, say, a file called "-rf" and you call "rm *".
+
+If you use a decent serialization format instead of traditional getopt and its cousins,
+this problem goes away.
