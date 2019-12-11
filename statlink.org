@@ -96,17 +96,7 @@ into a guaranteed dependency provided by a single closed program.
 The interface required for this are a natural development from "statically linked" configuration.
 * Example
 [[file:example.py][An example of most of these techniques]].
-Note that this example uses only Python,
-since the code needed for a Python/C interface is essentially boilerplate.
-The Python code in this example would be identical
-regardless of whether the application is implemented in C or Python.
-
-Since these techniques are particularly necessary in systems of high complexity,
-unfortunately my full-fledged examples are all closed-source software,
-which tends to be more complex than open source software.
-I've personally used all these techniques successfully
-in large-scale multi-language proprietary systems,
-to reduce the complexity and improve the reliability of configuring said systems.
+This example is small and Python-only, but the techniques scale.
 
 In the long run,
 more information about programs must become statically visible
