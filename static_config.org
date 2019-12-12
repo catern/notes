@@ -1,4 +1,5 @@
 #+title: DRAFT: Statically link your configuration
+#+HTML_HEAD: <style type="text/css">body{ max-width:80em; margin-left:auto; margin-right:auto; }</style>
 
 * Dynamically linked configuration is loaded at runtime from the filesystem
 Most software "dynamically links" its configuration.
@@ -53,7 +54,7 @@ For example, instead of using a string to indicate which mode some component sho
 we can use an enum - and have a compile-time guarantee that the enum is valid.
 ** Abstracted and shared
 This style also makes it easy to abstract over configuration,
-and share it between multiple environments.
+and share parts of it between multiple environments.
 
 We can store our shared configurations as data and functions in libraries,
 and import and reuse those libraries from each executable
@@ -110,7 +111,7 @@ Dynamic linking libraries has substantial advantages too, of course.
 But they mostly don't apply in the case of configuration.
 
 The most important advantage is the efficiency benefits,
-which don't apply in the case of configuration.
+which doesn't matter for configuration.
 The ability to upgrade every program using a library at once
 also doesn't really apply for most configuration scenarios.
 
@@ -138,21 +139,14 @@ with tweaks for their specific needs.
 No different from a normal library.
 
 [fn:serialization] 
-Protobuf and argdata are some nice binary[fn:binary] serialization formats.
+Protobuf and argdata are some nice serialization formats.
 
-[fn:binary]
-To prevent the temptation to hand-edit configs,
-(instead you should just edit the Python code that generates the config -
-ideally extending the high-level code to support your new use case)
-prefer to use binary serialization for your config.
-
-This also discourages commiting the configs to source control.
-
-You can pass down your serialized binary config through command line arguments,
-if you find some serialization format which eliminates null bytes.
-That would allow you to nicely avoid an unnecessary pipe;
-unfortunately Unix pointlessly requires arguments to not have null bytes,
-but it has no other restrictions.
+# As an aside, note that configuration shouldn't be edited after it's already serialized;
+# that implies that the configuration is persistent in some way instead of being immediately consumed and discarded,
+# which defeats the entire point of "statically linking configuration".
+# Instead of such editing,
+# the Python code that generated that configuration should be modified instead,
+# ideally extending the high-level code to support new use cases.
 
 [fn:getopt]
 Note I say passing down config via serialization over stdin (or some other pipe).
@@ -165,6 +159,9 @@ this is most obvious if you have, say, a file called "-rf" and you call "rm *".
 
 If you use a decent serialization format instead of traditional getopt and its cousins,
 this problem goes away.
+You can even still pass your configuration through argv,
+as long as you avoid the ambiguities of the traditional serialization.
+(And if your serialization doesn't include null bytes, which aren't allowed in argv on Unix)
 
 [fn:fd_passing]
 In Unix, any file descriptor (which includes sockets) can be passed down to a child process
