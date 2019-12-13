@@ -99,6 +99,8 @@ The interface required for this are a natural development from "statically linke
 [[file:example.py][An example of most of these techniques]].
 This example is small and Python-only, but the techniques scale.
 
+A larger example is the [[https://xmonad.org/][XMonad window manager]], in Haskell.
+
 In the long run,
 more information about programs must become statically visible
 if we are to create simple and correct large scale systems.
