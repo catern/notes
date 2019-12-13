@@ -33,19 +33,19 @@ and calls a function to run the real heart of the program,
 passing values parsed out of the configuration files.
 
 To statically link the configuration, we can get rid of that generic executable.
-Instead, we make our own custom executable,
+Instead, we write code for our own custom executable,
 which directly calls the function that makes up the heart of the program,
 passing arguments which describe our desired configuration.
 This gives us an executable with statically linked configuration.
+
+To change configuration, we change the code.
+For an interpreted language, we can immediately run after a change,
+and for a compiled language, we only have to recompile the top-level executable, which is fast.
 
 Instead of having one configuration file per environment we wish to run in,
 we can have one executable per environment we wish to run in.
 Instead of separately thinking about deployment of our configuration and deployment of our executable,
 we just deploy and run the executable specific to that environment.
-Instead of carefully editing the correct configuration file and restarting,
-we edit our custom executable and restart it.
-For an interpreted language, this is the same,
-and for a compiled language, only the top-level executable needs to be recompiled, which is fast.
 * Further advantages of statically linked configuration
 ** Richly typed
 Besides the advantages of static linking,
