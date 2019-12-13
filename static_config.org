@@ -43,7 +43,7 @@ we can have one executable per environment we wish to run in.
 Instead of separately thinking about deployment of our configuration and deployment of our executable,
 we just deploy and run the executable specific to that environment.
 Instead of carefully editing the correct configuration file and restarting,
-edit the custom executable source and restart it.
+we edit our custom executable and restart it.
 For an interpreted language, this is the same,
 and for a compiled language, only the top-level executable needs to be recompiled, which is fast.
 * Further advantages of statically linked configuration
