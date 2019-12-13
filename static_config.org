@@ -42,6 +42,10 @@ Instead of having one configuration file per environment we wish to run in,
 we can have one executable per environment we wish to run in.
 Instead of separately thinking about deployment of our configuration and deployment of our executable,
 we just deploy and run the executable specific to that environment.
+Instead of carefully editing the correct configuration file and restarting,
+edit the custom executable source and restart it.
+For an interpreted language, this is the same,
+and for a compiled language, only the top-level executable needs to be recompiled, which is fast.
 * Further advantages of statically linked configuration
 ** Richly typed
 Besides the advantages of static linking,
@@ -59,6 +63,8 @@ and share parts of it between multiple environments.
 We can store our shared configurations as data and functions in libraries,
 and import and reuse those libraries from each executable
 just as we would share any other component.[fn:language_libraries]
+For example, instead of copying a large configuration around with small differences,
+we can create a function which takes parameters and returns the configuration with those parameters included.
 ** Dynamic behavior
 We can also have dynamic behavior if we choose to:
 We can write code to inspect the environment and verify that it matches expectations,
