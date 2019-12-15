@@ -141,15 +141,14 @@ One often-mentioned advantage of "dynamically linked" configuration
 is that it can be changed without building or running tests or deploying.
 
 But most production bugs are due to incorrect configuration.
-If anything, configuration should have to go through more quality gates.
+If anything, configuration should be more thoroughly validated than code.
 For example,
 configuration could be written in a dependently typed language
 that can express more invariants at compile-time.
 
-But allowing configuration to bypass all the normal quality gates that we've established
-just reduces the quality of our software
-and our ability to make changes without fear of breaking something.
-It's a temptation, but one that we will benefit from avoiding.
+Allowing configuration to bypass even basic validation
+reduces software quality
+and makes it harder to make changes without fear of breaking something.
 
 [fn:richly_typed]
 "Richly typed" languages are also called "statically typed" languages,
