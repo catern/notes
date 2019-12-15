@@ -39,8 +39,10 @@ passing arguments which describe our desired configuration.
 This gives us an executable with statically linked configuration.
 
 To change configuration, we change the code.
-For an interpreted language, we can immediately run after a change,
-and for a compiled language, we only have to recompile the top-level executable, which is fast.
+For an interpreted language,
+we can immediately run after a change,
+and for a compiled language,
+we only have to recompile the top-level executable, which is fast.[fn:building]
 
 Instead of having one configuration file per environment we wish to run in,
 we can have one executable per environment we wish to run in.
@@ -133,6 +135,21 @@ meaning the deployment experience is much like static linking.
 This is in some sense "morally" static linking,
 even though it is technically dynamic linking.
 This is mostly irrelevant to us here, in any case.
+
+[fn:building]
+One often-mentioned advantage of "dynamically linked" configuration
+is that it can be changed without building or running tests or deploying.
+
+But most production bugs are due to incorrect configuration.
+If anything, configuration should have to go through more quality gates.
+For example,
+configuration could be written in a dependently typed language
+that can express more invariants at compile-time.
+
+But allowing configuration to bypass all the normal quality gates that we've established
+just reduces the quality of our software
+and our ability to make changes without fear of breaking something.
+It's a temptation, but one that we will benefit from avoiding.
 
 [fn:richly_typed]
 "Richly typed" languages are also called "statically typed" languages,
