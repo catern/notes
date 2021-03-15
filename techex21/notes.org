@@ -1,0 +1,593 @@
+* talk
+  TSS integration is based on the principle of,
+  you need to be able to run your software
+
+  we couldn't run our software before;
+  we could run unit tests,
+  and we could maybe run one or a few processes together against a bunch of mocks,
+  and we could laboriously configure a bunch of resources to create a "QA system" by copying production
+  but we couldn't run the actual system as it was actually intended
+
+  but, once we can run our system,
+  well, besides the most obvious use, using it in production,
+  the second most obvious use is to run it to test it.
+
+  (er...)
+
+  anyway, so how do we manage to get our system running?
+  we have a bunch of processes with complex dependencies,
+  and we need to run them.
+
+  this task is actually pretty simple!
+  the hard part is understanding how your system actually works,
+  but once you've done that;
+  this knowledge can be encoded in a regular program.
+
+  [slide(s) about each of the points of the basic type system system stuff]
+
+  OK, that's fairly abstract.
+  Let's look at a concrete example now.
+
+  We'll make a test for a specific system.
+
+  I promise you, it doesn't matter what this system does.
+  I chose it as an example because it has moderately complicated dependencies,
+  but not too complicated.
+
+  The actual complex part, understanding the system,
+  has already been done and encoded into the type system by a domain expert.
+** building test in the talk
+   okay so... the iso validator seems like a good candidate since it depends on marketdata,
+   and is reasonably complex yet simple...
+
+   but testing it, is a bit tricky...
+   since we need a bump or whatever. hm.
+
+   I suppose bump might not be *that* complex?
+
+   ugh, disseminator... what a complication.
+
+   ok so what's the list
+
+   location, posdelta, disseminator -> hfmd -> feeds, tss_control, venues -> venue sim, static data, fastpath
+
+   tss_control, kinda sucks.
+
+   the rest of these... hmm...
+
+   okay I guess tss_control doesn't suck, it's a real input that WMM uses too...
+
+   posdelta is basically an in-out, a bus to register ourselves on...
+
+   disseminator, sigh, is an annoying indirection, but fine, it's marketdata.
+
+   static_data, ok that's real,
+
+   same with venues and fastpath.
+   and location.
+
+   hm.
+
+   I dunno, it's not actually all that complicated I guess
+
+   although if we include the manual trader, then it is complicated, for sure.
+
+   hm. maybe showing bit by bit is kind of irrelevant though.
+   I mean, I want to impress with the ease,
+   not show the real complexity in this system.
+
+   hmm but if we do include the manual trader it would be so delightfully complete...
+
+   eh... maybe a marketdata example is simpler.
+   like, just HFMD
+
+   right, we make staticdata... hmm RegNMSSimulator is a bit complex...
+
+   what about TPS, maybe?
+
+   that one is nice because we can demonstrate that the same code is used to start it in prod!
+
+   hmm and run_tps is pretty simple too.
+
+   yeah this also demonstrates remote usage.
+
+   ok I think TPS is probably the best example.
+
+   we should... porbably clean up some weird stuff that we did.
+*** lnc
+    hey, how about we just mirror lnc_library in the monorepo?
+    treat the HG repo as canonical still, but just mirror it in the monorepo,
+    so we can do tests against it?
+*** cleaning up TPS
+   like, I don't think expecting stuff in CWD is a good idea, anymore...
+   I mean... it's just so awkward...
+   passing them separately instead of as a bundle is nicer;
+   bundling them requires, uh, "consing" a "pair" - making the directory and the symlinks
+
+   a hassle.
+
+   ok so like,
+   passing the fds would be even nicer,
+   buuuuuuuuuuuuuuuut,
+   we don't deal with them as FDs right now so passing them as paths is a smidgen easier
+
+   hm. the ib to tps subaccount mapping.
+   it would be nice to pass those... in a more...
+   type-y way. hmmm....
+   on stdin, maybe...?
+
+   getting rid of "location" entirely would be really nice yeah...
+
+   oh hey. why not just pass it as JSON on the command line?
+   as one argument.
+
+   that would be... super easy!
+
+   hmm okay so how do we do persistence if we aren't enforcing a certain layout...
+   I guess start_persisting_tps is what enforces it, hmm...
+
+   I guess, there's no real reason to use a symlink now?
+   nor ever?
+   like, a directory containing some symlinks,
+   is no better than a file containing some paths.
+
+   but then again, a file containing some paths is no better than a directory containing some symlinks.
+
+   except, well, that a directory can't be updated atomically... we need the symlink instead.
+
+   and... also I can't use flink stuff sigh
+   no linkat with O.TMPFILE
+
+   I guess I can do it with proc, fine.
+
+   although... I do like the...
+   fact that the...
+   symlinked directories... stay around...
+
+   so it's nice to have all these old rundirs.
+*** outline of building test in the talk
+    ok so we'll show the method signature of start_tps
+
+    we'll talk about how this is common between prod and test..
+
+    then... run through each argument,
+    producing the thing we need...
+
+    hmmm
+** real talk
+*** intro
+   Hi,
+   I'm Spencer Baugh
+   and I work in the Modern Infrastructure for Trading Systems team
+   in Two Sigma Securities, TSS for short,
+   and today I'll be talking about how we approach testing in TSS,
+   with the Python library known as TSS Integration.
+
+   I'll be starting with a somewhat philosophical discussion of testing,
+   hopefully not too boring, hopefully containing at least a few ideas which are new to you.
+   Then we'll do an in-depth examination of actually writing a test in TSS Integration.
+   Then we'll close with a recap of the TSS testing mindset and areas for future improvement.
+
+   If you have questions at any time during this talk,
+   please feel free to raise them.
+   The goal here, is always to share knowledge,
+   so if something isn't making sense to you,
+   please let me know and give me the chance to clear it up.
+
+   And with that, let's get started.
+*** philosophy
+    So the first thing to observe is that the library we'll be talking about today,
+    TSS Integration,
+    is not a "testing library".
+    It's not a testing library.
+
+    We use it for testing, that's true,
+    but the function it provides is not "testing",
+    or even testing-related.
+
+    The function that TSS integration provides is,
+    the ability to run our system,
+    which of course is made up of many different components and many different services produced by many different teams.
+    And TSS Integration is a library which can run all those different components,
+    in arbitrary user-specified configurations,
+    and connect them so that they all talk to each other.
+
+    And we use this for testing,
+    but we also use it for production;
+    while the majority of TSS services run in prod with bespoke code specific to those services,
+    there's several critical subsystems that run in prod with code from TSS integration,
+    and of course we hope to grow that in the future.
+
+    And this doesn't rely on external services;
+    we can use this anywhere,
+    to make a self-contained system on one homeserver,
+    or on the pre-push test farm;
+    we heavily use this pre-push.
+
+    So the goal here is to be able to run our system.
+
+    And once we do that,
+    once we can run our system,
+    testing is actually pretty easy.
+    We'll talk more about this later,
+    but it turns out once you can actually run the system,
+    that gives you a lot of expressive power that you don't have with alternative approaches
+    like mocking,
+    or with saved production data, or things like that.
+    So we'll of course talk about this more later,
+    but testing becomes pretty easy.
+
+    So forget about testing for a moment.
+
+    Our problem instead is,
+    how do we run our system?
+
+    So right away, let's be clear,
+    in Two Sigma, we have a bunch of different services,
+    which we need to run,
+    which absolutely do not comply with any kind of common service framework.
+
+    They're C++, C, Java, Python,
+    written by many different teams,
+    they all have different kinds of configuration,
+    they speak utterly different protocols,
+    they communicate with UDP or TCP or shared memory or other things,
+    there's utterly diverse.
+
+    So our solution is going to have to cope with all this complexity.
+
+    And on top of this we have all the usual problems of running a system;
+    service discovery,
+    distributed execution,
+    process management,
+    artifact deployment,
+    all this stuff.
+
+    And we need to run both in core and colo,
+    and of course we need to retain the ability to run pre-push as we mentioned before.
+
+    So how did we approach this complexity?
+
+    Well, it's actually not so bad as it seems.
+    These problems can actually be solved quite effectively with a type system.
+    The same type system your favorite language probably already has,
+    no fancy dependent type tricks or anything.
+
+    So let's look at a basic problem.
+    If I have service A,
+    which needs to talk to services B and C,
+    we have a couple requirements.
+    B and C need to start up before A,
+    and we need to communicate the URLs of B and C to A, somehow.
+    This is basically a problem of dependency injection.
+    Which might suggest a solution...
+    https://twitter.com/importantshock/status/1085740688283746304
+    
+    We can do this with a function.
+    [show start_a example]
+
+    Now here's another kind of problem.
+    [show start_e example]
+
+    And for different environments,
+    we'll want different kinds of systems.
+    We can express that too.
+    [show start_f example]
+
+
+    In TSS Integration,
+    we've created types and functions
+    which support starting up many different components.
+    Different tests may use these functions to start up the system for their test,
+    configuring it however they wish.
+    Those same functions are called in production to start up those components for production usage.
+*** example
+    Now let's look at a concrete example.
+    We'll be looking at TPS, the Two Sigma Position Service.
+    What TPS actually does isn't super relevant,
+    but it's basically an order gateway;
+    it receives orders from external counterparties,
+    validates and possibly rejects those orders,
+    and updates the TS position daemon, posdelta,
+    with the fills if the order is not rejected.
+
+    Anyway,
+    the subsystem required to support TPS is relatively small,
+    so it's approachable for this example.
+    TPS and its dependencies are one of the subsystems
+    which are run by TSS Integration in production,
+    so we can examine both the test and the production code.
+
+    We'll start writing this test in the normal way for a Python test:
+    With a =unittest.TestCase=.
+
+#+begin_src python
+from integration.tps import start_tps
+from unittest import TestCase
+
+class TestTPS(TestCase):
+    def setUp(self) -> None:
+        self.tps = start_tps(...)
+
+    def test(self) -> None:
+        self.assertTrue("Do test stuff")
+#+end_src
+
+Normally, a new test for TPS would go in the existing file of TPS tests,
+which already sets up a test system that includes TPS,
+and we wouldn't have to write any setup code.
+But for the sake of this example,
+we'll pretend that we're writing the first tests for TPS,
+and we have to set up the environment from scratch.
+
+We'll start up TPS in =setUp= by calling =start_tps=,
+and perform the actual test in =test=.
+
+Now, let's look at the actual signature of =start_tps=.
+
+#+begin_src python
+async def start_tps(
+  nursery: trio.Nursery,
+  thread: Thread,
+  listening_sock: FileDescriptor,
+  database: Database,
+  posdelta: Posdelta,
+  publishing_iqueue: PassthroughPublishingIqueue,
+  static_data: StaticData,
+  ib_subaccount_to_tps_subaccount: t.Dict[str, str],
+) -> TPS:
+  ...
+#+end_src
+
+Don't panic! Yes, it has 8 arguments, meaning 8 dependencies,
+but we'll be able to create them all quickly.
+
+First, some boilerplate.
+This is an =async= function,
+so we'll need to call it from an async context.
+We use the open source =trio= library for async Python,
+so to get the test into an async context, we'll switch =TestCase= to =TrioTestCase=.
+
+#+begin_src python
+from integration.tps import start_tps
+from trio import TrioTestCase
+
+class TestTPS(TrioTestCase):
+    async def asyncSetUp(self) -> None:
+        self.tps = await start_tps(...)
+
+    async def test(self) -> None:
+        self.assertTrue("Do test stuff")
+#+end_src
+
+The first two arguments are also boilerplate.
+The first argument is a =trio.Nursery=,
+which is used to start up background asynchronous tasks and detect if they fail.
+
+In this case, if anything fails, we just want to fail the test,
+so =TrioTestCase= helps here,
+because it comes with a =trio.Nursery= ready-to-use which will do exactly that.
+
+#+begin_src python
+        self.tps = await start_tps(
+            self.nursery,
+            ...,
+        )
+#+end_src
+
+The second argument is a =Thread= from the open source =rsyscall= library,
+which lets us start up threads on remote hosts and manipulate them,
+which is how we distribute execution across multiple machines.
+This test, we just want to run locally, so we'll just use =local_thread=;
+we'll assign it to =self.thread= for easy access.
+
+#+begin_src python
+from rsyscall import local_thread
+
+        self.thread = local_thread
+        self.tps = await start_tps(
+            self.thread,
+            ...,
+        )
+#+end_src
+
+Now for the actual dependencies.
+=listening_sock: FileDescriptor=
+The TPS daemon wants a pre-created listening socket, which it will use to listen for incoming connections.
+We'll create the socket that TPS wants here, and pass it down to TPS.
+A TCP socket will work fine, so we'll specify AF_INET and SOCK_STREAM to get a TCP socket,
+and bind it to a random unused port by specifying port 0.
+
+#+begin_src python
+from rsyscall.socket import AF, SOCK
+from rsyscall.netinet.in_ import SockaddrIn
+
+        sock = await self.thread.socket(AF.INET, SOCK.STREAM)
+        await sock.bind(await self.thread.ptr(SockaddrIn(0, "127.0.0.1")))
+        await sock.listen(1024)
+        self.tps = await start_tps(
+            ...,
+            sock,
+            ...,
+        )
+#+end_src
+
+Now we need to connect TPS to the database it uses as a backend and persistent mechanism.
+SQLite will work fine for us, since this is just a test.
+This =Database= type is really =integration.tps.Database=,
+and it comes with a method to initialize the TPS database schema,
+so we'll just call that.
+
+We do need a path to put the database at;
+we'll use a helper function, =make_location=,
+which makes a temporary directory at an appropriate local path.
+
+We usually call =make_location= just once, then make further files and directories under the path it returns.
+
+We use =self.thread= again,
+to indicate that the database should be created on the same host as everything else.
+
+#+begin_src python
+from integration.lib.utils import make_location
+
+        self.location = make_location()
+        self.tps = await start_tps(
+            ...,
+            await Database.make(self.thread, self.location/"tps.db"),
+            ...,
+        )
+#+end_src
+
+Now for =posdelta=, which is a service which distributes position updates to many clients.
+We need to start up =posdelta=, which we do, naturally, with =start_posdelta=.
+Let's look at the interface for start_posdelta...
+
+#+begin_src python
+async def start_posdelta(
+    nursery: trio.Nursery, workdir: Path,
+    static_data: StaticData=None,
+    cpu: cpuset.Cpu=None, order_map_size: int=2048,
+    filters: t.List[IqsyncFilter]=[],
+) -> Posdelta:
+#+end_src
+
+A lot of arguments, but most of them are optional.
+We only actually need =nursery: trio.Nursery= and =workdir: Path=.
+We already have a =trio.Nursery=.
+=workdir= is a relatively common parameter,
+a directory that the service will use to store its state.
+We can just make a directory under =self.location=.
+So:
+
+#+begin_src python
+from integration.posdelta import make_location
+
+        self.posdelta = await start_posdelta(self.nursery, (self.location/"posdelta").mkdir())
+        self.tps = await start_tps(
+            ...,
+            self.posdelta,
+            ...,
+        )
+#+end_src
+
+OK, so we started up the posdelta service, now back to TPS.
+
+Next is =publishing_iqueue: PassthroughPublishingIqueue=.
+A =PassthroughPublishingIqueue= is a specific type of iqueue
+used by several different services (not just TPS) to publish positions to posdelta.
+Let's look at the constructor.
+
+#+begin_src python
+class PassthroughPublishingIqueue:
+    @staticmethod
+    async def make(
+        thread: Thread,
+        path: Path,
+        src_id: int=0,
+    ) -> PassthroughPublishingIqueue: ...
+#+end_src
+
+Again we need a =Thread=, to identify which host to operate on,
+and a =Path=, to identify the path at which the iqueue should be created.
+The last argument lets us customize =src_id=, but that's not something we care about for these tests.
+
+#+begin_src python
+from integration.tps import PassthroughPublishingIqueue
+
+        self.tps = await start_tps(
+            ...,
+            await PassthroughPublishingIqueue.make(self.thread, self.location/"tps.iqx")
+            ...,
+        )
+#+end_src
+
+Almost there!
+We need a =StaticData=,
+which is a widely used type which contains a bunch of instrument reference data,
+stored as files in a directory on disk.
+
+Again, simple enough to make:
+#+begin_src python
+from integration.static_data import StaticData
+
+        self.static_data = await StaticData.make(self.thread, (self.location/"static_data").mkdir())
+        self.tps = await start_tps(
+            ...,
+            self.static_data,
+            ...)
+#+end_src
+
+OK! We made it!
+
+#+begin_src python
+from integration.static_data import StaticData
+from integration.tps import start_tps
+from trio import TrioTestCase
+from rsyscall import local_thread
+from rsyscall.socket import AF, SOCK
+from rsyscall.netinet.in_ import SockaddrIn
+
+class TestTPS(TrioTestCase):
+    async def asyncSetUp(self) -> None:
+        self.thread = local_thread
+        sock = await self.thread.socket(AF.INET, SOCK.STREAM)
+        await sock.bind(await self.thread.ptr(SockaddrIn(0, "127.0.0.1")))
+        await sock.listen(1024)
+        self.static_data = await StaticData.make(self.thread, (self.location/"static_data").mkdir()),
+        self.tps = await start_tps(
+            self.nursery,
+            self.thread,
+            sock,
+            await Database.make(self.thread, self.location/"tps.db"),
+            await start_posdelta(self.nursery, (self.location/"posdelta").mkdir()),
+            await PassthroughPublishingIqueue.make(self.thread, self.location/"tps.iqx"),
+            self.static_data,
+        )
+
+    async def test(self) -> None:
+        self.assertTrue("Do test stuff")
+#+end_src
+
+Now we'll use the Python client for TPS,
+which connects to TPS's listening socket,
+to send an order and a fill through,
+in an arbitrary instrument.
+
+#+begin_src python
+    async def test(self) -> None:
+        client = await self.tps.make_client()
+        order = await client.new_order('buy', 100, self.static_data.instruments[0], Decimal('50.0'))
+        await order.fill(100, Decimal('50.0')
+#+end_src
+
+If this succeeds without throwing an exception...
+it means TPS is responding to requests correctly.
+That's a test!
+Now, of course, there are a few more features;
+we'd probably want to send some sell orders,
+and cancels, etc.
+
+But once we have a running system,
+all it takes to test it is to fire up the client we use in production,
+and send some orders just like we do in prod.
+
+Of course, we'd still want to show that it's interacting with other components correctly.
+That's easy too!
+The only way TPS interacts with other components is by sending position updates,
+so we just fire up those other components
+and check that the positions they report match the activity we've performed through TPS.
+
+We don't need to,
+and shouldn't,
+look at the actual data TPS is sending out.
+
+That's far too easy to get wrong.
+
+Instead, we do our testing end to end.
+We let the other services read that data,
+and if what they report, and how they behave,
+matches our expectations...
+then we've passed the test.
+
+This makes our testing simpler, less fragile, and more powerful;
+we get full coverage for free, because it's the normal practice for testing everything.
