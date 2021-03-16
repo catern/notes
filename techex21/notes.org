@@ -154,7 +154,8 @@
     producing the thing we need...
 
     hmmm
-* real talk
+
+* TSS Integration talk
 
 ** Who is this guy?
 Name: Spencer Baugh
@@ -178,10 +179,12 @@ Let's begin!
 
 - TSS Integration is a Python library
 - in the monorepo at ts/tss/integration
+- Module name is "integration"
 
 - Used by teams in TSS and TSI
-- Maintained collectively by those teams
-- Originally developed by the MITS team in TSS
+- Maintained and developed collectively by those teams
+- Originally developed by the MITS team in TSS in 2018
+- We chose Python because it's the lowest common denominator
 
 - Uses Python type annotations:
 #+begin_src python
@@ -189,6 +192,8 @@ var: Type = Type()
 
 def f(arg: Type) -> ReturnType: ...
 #+end_src
+
+(They're rougly as powerful as the Java or C++ type systems)
 
 - Uses async Python:
 #+begin_src python
@@ -291,6 +296,8 @@ We need to run in:
 - Colo
 - A single homeserver
 - The pre-push test farm
+
+So COIN, Kubernetes, etc, won't work.
 
 So what do we do?
 
@@ -717,7 +724,88 @@ then we've passed the test.
 
 This makes our testing simpler, less fragile, and more powerful;
 we get full coverage for free, because it's the normal practice for testing everything.
+** TODO end section
+*** further elements from README.org
+    like the use of REPLs, maybe
+*** ending
+    Should reaffirm the importance of being able to run your system
+
+    (everywhere, and on the fly?)
+* let's actually think
+  what should we actually put in the talk?
+
+  so the philosophical section and the example are both good things that I want in the talk...
+  so I'll just... treat those as fixed...
+
+  I mean...
+  obviously I should be thinking about what effect I want the talk to have.
+
+  ok I feel like the talk is good content-wise right now... maybe?
+** post about, running system + contracts is good testing
+   Yeah this is what I need.
+   I need this post so I can excerpt parts of it and reference it.
+
+   hmm
+   also inverse testing?
+   does that fit in?
+
+   yeah okay so I guess a blog post about actual testing will be beneficial/necessary
+
+   then we can talk about that at the end of the example (I guess)
+
+   or maybe even in the philosophical discussion part;
+   we only waved it off because we didn't actually have anything to say lol.
+
+   ok so then we can just point out how what we're doing complies with that testing approach,
+   nice good okay...
+
+   you have error reporting mechanisms in prod,
+   like reject messages or error logs or all that
+   what if they go wrong? well that's why you have many services
+   what if they all go wrong? well why do you expect your test to be any different,
+   given that you will certainly not lavish effort on the test that doesn't even run in prod?
+** post about repl/ide/stuff as UI?
+   hm.
+
+   yeah, like... the continuum between a UI,
+   and a REPL,
+   and how you might want to just,
+   compose these objects,
+   as an easy way to make a UI..
+** ending stuff
+   I guess I should just recap the points really.
+   run your system,
+   and we did it this way.
+
+   and, run your system.
+
+   like,
+   "so this all comes from running your system,
+   we ran our system using these techniques.
+
+   so, run your system."
+
+   ok so I feel like that's good actually!
+   oh but... where should we put discussion of alternative approaches?
+   oh, alternative testing approaches I guess can be in the testing section at the end of the example,
+   from my future blog post about that.
+** ooh good idea
+   When doing the example I should put the function signature on a window next to my main window,
+   with a split.
+   So it stays up there and people can keep track of it.
 * 
+** their feedback
+   not much
+
+the content is interesting
+and easy to follow
+
+he said maybe I don't need to have all the detail in the large example,
+although he says that he did like the fact that I'm showing everything,
+that there's nothing up my sleeve
+
+and it was still easy to follow
+** their suggestions
 demonstrate the problem at the beginning
 
 talk about why we can't use alternatives
@@ -725,11 +813,11 @@ talk about why we can't use alternatives
 what we had before (mocks, stuff)
 
 product management - people who use it
-
+** their suggestions
 give context up front
 
 (my thought: I should probably explain the use of Python typing and Python async up front)
-
+** 
 yeah giving context up front makes sense actually, for sure.
 
 obviously I'm jumping right in without context,
@@ -740,3 +828,18 @@ and...
 what even is this library we're talking about...
 
 yeah so giving a short history and description of the project management of the library might be useful.
+** DONE give details up front
+okay so we gave some details about the library and management up front, nice
+** TODO give history up front
+I'm not sure this is necessary?
+** TODO give problem up front
+I feel like... this is already covered?
+Maybe I should focus more on competing solutions that are unsuitable?
+
+hmm yeah maybe.
+the part where I talk about how we need to run pre-push.
+
+maybe between that and saying "a type system",
+I can say "and so Kubernetes and COIN etc don't work".
+
+okay yeah! Maybe that's all I need to say.
