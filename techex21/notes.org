@@ -154,152 +154,277 @@
     producing the thing we need...
 
     hmmm
-** real talk
-*** intro
-   Hi,
-   I'm Spencer Baugh
-   and I work in the Modern Infrastructure for Trading Systems team
-   in Two Sigma Securities, TSS for short,
-   and today I'll be talking about how we approach testing in TSS,
-   with the Python library known as TSS Integration.
+* real talk
+
+** Who is this guy?
+Name: Spencer Baugh
+Team: Modern Infrastructure for Trading Systems (MITS)
+Hat: Two Sigma Securities (TSS)
+
+Talk is about:
+Testing in TSS with the "TSS Integration" library
+
+1. Brief mundane details of TSS Integration
+2. Philosophical discussion of testing (hopefully novel)
+3. In-depth example of writing a test with TSS Integration
+4. Recap of the TSS mindset
+
+If something isn't making sense, please ask;
+give me the chance to clear it up.
+
+Let's begin!
+
+** Brief mundane details
+
+- TSS Integration is a Python library
+- in the monorepo at ts/tss/integration
+
+- Used by teams in TSS and TSI
+- Maintained collectively by those teams
+- Originally developed by the MITS team in TSS
+
+- Uses Python type annotations:
+#+begin_src python
+var: Type = Type()
 
-   I'll be starting with a somewhat philosophical discussion of testing,
-   hopefully not too boring, hopefully containing at least a few ideas which are new to you.
-   Then we'll do an in-depth examination of actually writing a test in TSS Integration.
-   Then we'll close with a recap of the TSS testing mindset and areas for future improvement.
+def f(arg: Type) -> ReturnType: ...
+#+end_src
+
+- Uses async Python:
+#+begin_src python
+async def f(arg: Type) -> ReturnType:
+    x = await g(arg)
+    await h(x)
+    ...
+#+end_src
 
-   If you have questions at any time during this talk,
-   please feel free to raise them.
-   The goal here, is always to share knowledge,
-   so if something isn't making sense to you,
-   please let me know and give me the chance to clear it up.
+(We use the open source "trio" library for async)
+
+It's a normal Python library.
+
+** Philosophical discussion (hopefully novel)
+
+First off:
 
-   And with that, let's get started.
-*** philosophy
-    So the first thing to observe is that the library we'll be talking about today,
-    TSS Integration,
-    is not a "testing library".
-    It's not a testing library.
+- TSS Integration is not a "testing library"
+- Its purpose is not testing
+- It's not even really testing-related
+
+TSS Integration provides this function:
 
-    We use it for testing, that's true,
-    but the function it provides is not "testing",
-    or even testing-related.
+*The ability to run the trading system*
 
-    The function that TSS integration provides is,
-    the ability to run our system,
-    which of course is made up of many different components and many different services produced by many different teams.
-    And TSS Integration is a library which can run all those different components,
-    in arbitrary user-specified configurations,
-    and connect them so that they all talk to each other.
+(See http://catern.com/run.html)
+
+*The ability to run the trading system*
 
-    And we use this for testing,
-    but we also use it for production;
-    while the majority of TSS services run in prod with bespoke code specific to those services,
-    there's several critical subsystems that run in prod with code from TSS integration,
-    and of course we hope to grow that in the future.
+Two Sigma systems are:
+- made up of many different components,
+- many different services,
+- provided by many different teams.
+
+*The ability to run the trading system*
 
-    And this doesn't rely on external services;
-    we can use this anywhere,
-    to make a self-contained system on one homeserver,
-    or on the pre-push test farm;
-    we heavily use this pre-push.
+TSS Integration:
+- Runs these components
+- Connects these services
+- In arbitrary user-controlled configurations 
+- (Configurations are not predetermined by the library!)
+
+*The ability to run the trading system*
 
-    So the goal here is to be able to run our system.
+| Use case        | Do we actually, for real, do it with TSS Integration today? |
+|-----------------+-------------------------------------------------------------|
+| Experimentation | Yes                                                         |
+| Development     | Yes                                                         |
+| Testing         | Yes                                                         |
+| Profiling       | Yes                                                         |
+| Production      | For several important subsystems (more soon?)               |
+
+*The ability to run the trading system*
 
-    And once we do that,
-    once we can run our system,
-    testing is actually pretty easy.
-    We'll talk more about this later,
-    but it turns out once you can actually run the system,
-    that gives you a lot of expressive power that you don't have with alternative approaches
-    like mocking,
-    or with saved production data, or things like that.
-    So we'll of course talk about this more later,
-    but testing becomes pretty easy.
+There are zero external service dependencies;
+so, TSS Integration can run the system anywhere.
 
-    So forget about testing for a moment.
+- Core
+- Colo
+- A single homeserver
+- The pre-push test farm
+
+*The ability to run the trading system*
 
-    Our problem instead is,
-    how do we run our system?
+- Makes testing pretty easy, actually
+- More on this later
+
+So forget about testing for a moment.
 
-    So right away, let's be clear,
-    in Two Sigma, we have a bunch of different services,
-    which we need to run,
-    which absolutely do not comply with any kind of common service framework.
+Our goal right now:
+*The ability to run the trading system*
+(in a flexible, robust, portable, self-contained way)
+
+So how do we run the system?
 
-    They're C++, C, Java, Python,
-    written by many different teams,
-    they all have different kinds of configuration,
-    they speak utterly different protocols,
-    they communicate with UDP or TCP or shared memory or other things,
-    there's utterly diverse.
+There is no common service framework.
 
-    So our solution is going to have to cope with all this complexity.
+- Many different teams producing many different daemons
+- C++, C, Java, Python, etc
+- Configuration: Properties, CSVs, YAML, environment variables
+- Protocols: Protocolgen, Protobuf, Object Channel, HTTP, etc
+- Transports: UDP, TCP, mqueue, iqueue, msgbox, etc
+- Etc!
 
-    And on top of this we have all the usual problems of running a system;
-    service discovery,
-    distributed execution,
-    process management,
-    artifact deployment,
-    all this stuff.
+Our solution has to handle all this.
+
+Plus we have the normal problems!
 
-    And we need to run both in core and colo,
-    and of course we need to retain the ability to run pre-push as we mentioned before.
+- service discovery,
+- distributed execution,
+- process management,
+- artifact deployment,
+- etc...
+
+And we need to stay portable and avoid external service dependencies.
 
-    So how did we approach this complexity?
+We need to run in:
 
-    Well, it's actually not so bad as it seems.
-    These problems can actually be solved quite effectively with a type system.
-    The same type system your favorite language probably already has,
-    no fancy dependent type tricks or anything.
+- Core
+- Colo
+- A single homeserver
+- The pre-push test farm
+
+So what do we do?
 
-    So let's look at a basic problem.
-    If I have service A,
-    which needs to talk to services B and C,
-    we have a couple requirements.
-    B and C need to start up before A,
-    and we need to communicate the URLs of B and C to A, somehow.
-    This is basically a problem of dependency injection.
-    Which might suggest a solution...
-    https://twitter.com/importantshock/status/1085740688283746304
-    
-    We can do this with a function.
-    [show start_a example]
+It's not so bad actually.
+We can solve this with... a type system.
 
-    Now here's another kind of problem.
-    [show start_e example]
+(See http://catern.com/progsys.html)
+
+A type system!
 
-    And for different environments,
-    we'll want different kinds of systems.
-    We can express that too.
-    [show start_f example]
+A basic one, the one your language probably already has
+
+No fancy dependent types, nothing unusual
+
+A basic example problem:
+
+Service A connects to services B and C.
+
+Immediate consequences:
+- B and C need to start before A
+- A needs to know the URLs of B and C
+
+Basically a problem of dependency injection...
 
 
-    In TSS Integration,
-    we've created types and functions
-    which support starting up many different components.
-    Different tests may use these functions to start up the system for their test,
-    configuring it however they wish.
-    Those same functions are called in production to start up those components for production usage.
-*** example
-    Now let's look at a concrete example.
-    We'll be looking at TPS, the Two Sigma Position Service.
-    What TPS actually does isn't super relevant,
-    but it's basically an order gateway;
-    it receives orders from external counterparties,
-    validates and possibly rejects those orders,
-    and updates the TS position daemon, posdelta,
-    with the fills if the order is not rejected.
+[[file:tweet.png]]
+
+** You can express dependencies between services using function arguments.
 
-    Anyway,
-    the subsystem required to support TPS is relatively small,
-    so it's approachable for this example.
-    TPS and its dependencies are one of the subsystems
-    which are run by TSS Integration in production,
-    so we can examine both the test and the production code.
+#+begin_src python
+def start_a(b: B, c: C) -> A:
+    ...
+    start_process([
+      "/bin/a",
+      "--b-url", b.url,
+      "--c-url", c.url,
+      ...
+    ])
+    ...
+    return A(...)
+#+end_src
 
-    We'll start writing this test in the normal way for a Python test:
-    With a =unittest.TestCase=.
+=start_a= takes two arguments, of types =B= and =C=,
+and returns a value of type =A=.
+Internally, it starts up service A,
+configuring A using details from the function arguments.
+
+If you want to start service A,
+you've got create instances of =B= and =C= first;
+presumably by starting services B and C!
+That's exactly the invariant we want to enforce.
+
+TSS Integration defines such types and functions,
+for all the services and components in the trading system.
+
+These types include all the details required to communicate with the service.
+
+** You can keep track of complex values using types.
+Service D can listen on either an HTTP or HTTP2 URL.
+Service E can only work with service D if it's in HTTP2 mode.
+
+#+begin_src python
+def start_e(d: D[HTTP2Url]) -> E:
+    ...
+      "--d-url", d.url, # an HTTP2Url
+    ...
+    return E(...)
+
+
+def main(d: D[HTTPUrl]) -> E:
+    # type error!
+    return start_e(d)
+#+end_src
+
+The =D= class takes a type argument specifying the type of =d.url=.
+(Like Java generics or C++ templates)
+** You can create different environments by passing different arguments to functions.
+A third and final example.
+
+For different use cases, we'll want systems configured in different ways.
+
+Service F has an optional dependency on service G;
+F can run whether or not service G is available.
+
+    #+begin_src python
+    def start_f(g: Optional[G]) -> F:
+        ...
+        if g:
+           ... "--g-url", g.url ...
+        else:
+           pass
+        return F(...)
+
+    def environment_one() -> None:
+        g = ...
+        f = start_f(g)
+        ...
+
+
+    def environment_two() -> None:
+        f = start_f(None)
+        ...
+    #+end_src
+
+We can use =environment_one= or =environment_two=, each where appropriate.
+(See http://catern.com/config.html for more general discussion of this specific technique)
+
+In TSS Integration, the same functions and types are used for both production and testing.
+
+But different environments are built out of those components,
+using technique we just saw.
+
+*** In-depth example of writing a test with TSS Integration
+We'll look at TPS, the Two sigma Position Service.
+
+What it actually does is not relevant, but...
+
+- It's an order gateway
+- Receives orders from the a mysterious source in the outside world
+- Validates and possibly rejects those orders
+- Updates the TS position daemon, =posdelta=, with the fills (if the order isn't rejected)
+
+Why TPS?
+
+- The subsystem required to support TPS is relatively small.
+- TPS is run by TSS Integration in production.
+
+This example is not meant to be practically useful.
+
+Goal:
+See how the principles we just discussed are put into practice.
+
+The tests starts in the normal way for a Python test:
+With a =unittest.TestCase=.
 
 #+begin_src python
 from integration.tps import start_tps
@@ -334,12 +459,11 @@ async def start_tps(
   posdelta: Posdelta,
   publishing_iqueue: PassthroughPublishingIqueue,
   static_data: StaticData,
-  ib_subaccount_to_tps_subaccount: t.Dict[str, str],
 ) -> TPS:
   ...
 #+end_src
 
-Don't panic! Yes, it has 8 arguments, meaning 8 dependencies,
+Don't panic! Yes, it has 7 arguments, meaning 7 dependencies,
 but we'll be able to create them all quickly.
 
 First, some boilerplate.
@@ -361,12 +485,12 @@ class TestTPS(TrioTestCase):
 #+end_src
 
 The first two arguments are also boilerplate.
-The first argument is a =trio.Nursery=,
+The first argument is =nursery: trio.Nursery=,
 which is used to start up background asynchronous tasks and detect if they fail.
 
 In this case, if anything fails, we just want to fail the test,
 so =TrioTestCase= helps here,
-because it comes with a =trio.Nursery= ready-to-use which will do exactly that.
+because it comes with a =trio.Nursery= ready-to-use, so we'll just use that.
 
 #+begin_src python
         self.tps = await start_tps(
@@ -394,7 +518,8 @@ from rsyscall import local_thread
 Now for the actual dependencies.
 =listening_sock: FileDescriptor=
 The TPS daemon wants a pre-created listening socket, which it will use to listen for incoming connections.
-We'll create the socket that TPS wants here, and pass it down to TPS.
+So this is just some pretty standard Unix socket programming.
+We'll create the socket that TPS wants here, and pass it down to TPS child process.
 A TCP socket will work fine, so we'll specify AF_INET and SOCK_STREAM to get a TCP socket,
 and bind it to a random unused port by specifying port 0.
 
@@ -412,7 +537,7 @@ from rsyscall.netinet.in_ import SockaddrIn
         )
 #+end_src
 
-Now we need to connect TPS to the database it uses as a backend and persistent mechanism.
+Now we need to connect TPS to the database it uses as a backend and persistence mechanism.
 SQLite will work fine for us, since this is just a test.
 This =Database= type is really =integration.tps.Database=,
 and it comes with a method to initialize the TPS database schema,
@@ -421,6 +546,7 @@ so we'll just call that.
 We do need a path to put the database at;
 we'll use a helper function, =make_location=,
 which makes a temporary directory at an appropriate local path.
+This is frequently the first thing in any setUp method.
 
 We usually call =make_location= just once, then make further files and directories under the path it returns.
 
@@ -591,3 +717,26 @@ then we've passed the test.
 
 This makes our testing simpler, less fragile, and more powerful;
 we get full coverage for free, because it's the normal practice for testing everything.
+* 
+demonstrate the problem at the beginning
+
+talk about why we can't use alternatives
+** things I talked about the end
+what we had before (mocks, stuff)
+
+product management - people who use it
+
+give context up front
+
+(my thought: I should probably explain the use of Python typing and Python async up front)
+
+yeah giving context up front makes sense actually, for sure.
+
+obviously I'm jumping right in without context,
+and explaining, like...
+
+hey, we want to be able to... test things...
+and...
+what even is this library we're talking about...
+
+yeah so giving a short history and description of the project management of the library might be useful.
