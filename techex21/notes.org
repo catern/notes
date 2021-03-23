@@ -154,67 +154,48 @@
     producing the thing we need...
 
     hmmm
+* prep
+(blink-cursor-mode -1)
 
 * TSS Integration talk
 
 ** Who is this guy?
 Name: Spencer Baugh
 Team: Modern Infrastructure for Trading Systems (MITS)
-Hat: Two Sigma Securities (TSS)
+Org: Two Sigma Securities (TSS)
 
 Talk is about:
 Testing in TSS with the "TSS Integration" library
 
-1. Brief mundane details of TSS Integration
+1. Brief history of TSS Integration
 2. Philosophical discussion of testing (hopefully novel)
 3. In-depth example of writing a test with TSS Integration
-4. Recap of the TSS mindset
+4. Closing remarks and questions
 
 If something isn't making sense, please ask;
 give me the chance to clear it up.
 
 Let's begin!
 
-** Brief mundane details
-
-- TSS Integration is a Python library
+** Brief history
+TSS Integration is:
+- a Python library (module name "integration")
 - in the monorepo at ts/tss/integration
-- Python module name is "integration"
-- Slack channel: #x-tss-integration
+- discussed in Slack at #x-tss-integration
 
 - Used by teams in TSS and TSI
 - Maintained and developed collectively by those teams
 - Originally developed by the MITS team in TSS in 2018
-- We chose Python because it's the lowest common denominator
+- We chose Python so that it could be widely used
 
+To give a sense of scale:
 - Fully supports around a hundred different daemons,
   across eight teams.
 - Always growing!
 
-- Uses Python type annotations:
-#+begin_src python
-var: Type = Type()
-
-def f(arg: Type) -> ReturnType: ...
-#+end_src
-
-They're rougly as powerful as the Java or C++ type systems;
-see https://mypy.readthedocs.io/en/stable/cheat_sheet_py3.html for more info
+But what does it actually do?
 
-- Uses async Python:
-#+begin_src python
-async def f(arg: Type) -> ReturnType:
-    x = await g(arg)
-    await h(x)
-    ...
-#+end_src
-
-We use the open source "trio" library for async;
-see https://trio.readthedocs.io/en/stable/tutorial.html for more info
-
-It's a normal Python library.
-
-** Philosophical discussion (hopefully novel)
+** Philosophical discussion
 
 First off:
 
@@ -222,14 +203,13 @@ First off:
 - Its purpose is not testing
 - It's not even really testing-related
 
-TSS Integration provides this function:
-
-*The ability to run the trading system*
+TSS Integration provides
+*the ability to run the trading system*
 
 (See http://catern.com/run.html)
-
-*The ability to run the trading system*
 
+I'll explain that a little more.
+
 Two Sigma systems are:
 - made up of many different components,
 - many different services,
@@ -241,34 +221,39 @@ TSS Integration:
 - Runs these components
 - Connects these services
 - In arbitrary user-controlled configurations 
-- (Configurations are not predetermined by the library!)
+  (Configurations are not predetermined by the library!)
 
 *The ability to run the trading system*
+for any purpose.
 
-| Use case        | Do we actually, for real, do it with TSS Integration today? |
-|-----------------+-------------------------------------------------------------|
-| Experimentation | Yes                                                         |
-| Development     | Yes                                                         |
-| Testing         | Yes                                                         |
-| Profiling       | Yes                                                         |
-| Production      | For several important subsystems (more soon?)               |
+| Use case        | Run with TSS Integration?                     |
+|-----------------+-----------------------------------------------|
+| Development     | Yes                                           |
+| Testing         | Yes                                           |
+| Profiling       | Yes                                           |
+| Production      | For several important subsystems (more soon?) |
 
 *The ability to run the trading system*
+anywhere.
 
-There are zero external service dependencies;
-so, TSS Integration can run the system anywhere.
-
+There are zero external service dependencies,
+so we can run on:
 - Core
 - Colo
+- COIN
 - A single homeserver
-- The pre-push test farm
+- The pre-push test farm (we use this heavily)
 
 *The ability to run the trading system*
+makes testing much easier.
+
+Here's one explanation:
 
 - Everything makes assumptions about everything else in the system
 - If those assumptions are violated, we'll see failures
-- So testing is easy: Just drive the system with external events,
-  no need to make up new properties/assertions
+- So, to test, ideally, just run the system and drive activity through it
+- The more you run, the more confident you can be if nothing fails
+- (This is why testing in prod is so tempting!)
 
 (See http://catern.com/usertests.html)
 
@@ -279,7 +264,7 @@ Our goal right now:
 (in a flexible, robust, portable, self-contained way)
 
 So how do we run the system?
-
+
 There is no common service framework.
 
 - Many different teams producing many different daemons
@@ -291,7 +276,7 @@ There is no common service framework.
 
 Our solution has to handle all this.
 
-Plus we have the normal problems!
+Plus we have all the normal problems!
 
 - service discovery,
 - distributed execution,
@@ -301,14 +286,15 @@ Plus we have the normal problems!
 
 And we need to stay portable and avoid external service dependencies.
 
-We need to run in:
+Again, we need to run in:
 
 - Core
 - Colo
+- COIN
 - A single homeserver
 - The pre-push test farm
 
-So COIN, Kubernetes, etc, won't work.
+So Kubernetes, etc, won't work.
 
 So what do we do?
 
@@ -323,6 +309,17 @@ A basic one, the one your language probably already has
 
 No fancy dependent types, nothing unusual
 
+Quick overview of Python type annotations:
+#+begin_src python
+var: Foo = make_foo()
+
+def f(arg: Foo) -> ReturnType: ...
+#+end_src
+
+About the same as Java or C++;
+for more info, see
+https://mypy.readthedocs.io/en/stable/cheat_sheet_py3.html
+
 A basic example problem:
 
 Service A connects to services B and C.
@@ -336,8 +333,7 @@ Basically a problem of dependency injection...
 
 [[file:tweet.png]]
 
-** You can express dependencies between services using function arguments.
-
+*** You can express dependencies between services using function arguments
 #+begin_src python
 def start_a(b: B, c: C) -> A:
     ...
@@ -351,22 +347,22 @@ def start_a(b: B, c: C) -> A:
     return A(...)
 #+end_src
 
-=start_a= takes two arguments, of types =B= and =C=,
-and returns a value of type =A=.
-Internally, it starts up service A,
-configuring A using details from the function arguments.
+The =start_a= function:
+- takes values of types =B= and =C=
+- returns a value of type =A=
+- Internally, starts up service A,
+  configuring A using details from the function arguments
 
-If you want to start service A,
-you've got create instances of =B= and =C= first;
-presumably by starting services B and C!
-That's exactly the invariant we want to enforce.
+Want to start service A?
+You need instances of =B= and =C= first,
+from =start_b= and =start_c=!
 
-TSS Integration defines such types and functions,
-for all the services and components in the trading system.
+TSS Integration defines such types and functions
+for all the services in the trading system.
 
-These types include all the details required to communicate with the service.
+These objects contain the details required to use the service.
 
-** You can keep track of complex values using types.
+*** You can keep track of complex values using types
 Service D can listen on either an HTTP or HTTP2 URL.
 Service E can only work with service D if it's in HTTP2 mode.
 
@@ -385,88 +381,98 @@ def main(d: D[HTTPUrl]) -> E:
 
 The =D= class takes a type argument specifying the type of =d.url=.
 (Like Java generics or C++ templates)
-** You can create different environments by passing different arguments to functions.
-A third and final example.
-
-For different use cases, we'll want systems configured in different ways.
+
+*** You can create different environments by passing different arguments
+Different use cases need systems configured in different ways.
 
 Service F has an optional dependency on service G;
-F can run whether or not service G is available.
+F changes its behavior depending on whether service G is available.
 
-    #+begin_src python
-    def start_f(g: Optional[G]) -> F:
-        ...
-        if g:
-           ... "--g-url", g.url ...
-        else:
-           pass
-        return F(...)
+#+begin_src python
+def start_f(g: Optional[G]) -> F:
+    ...
+    if g:
+       ... "--g-url", g.url ...
+    else:
+       pass
+    ...
 
-    def environment_one() -> None:
-        g = ...
-        f = start_f(g)
-        ...
+def environment_one() -> None:
+    g = ...
+    f = start_f(g)
+    ...
 
 
-    def environment_two() -> None:
-        f = start_f(None)
-        ...
-    #+end_src
+def environment_two() -> None:
+    f = start_f(None)
+    ...
+#+end_src
 
 We can use =environment_one= or =environment_two=, each where appropriate.
-(See http://catern.com/config.html for more general discussion of this specific technique)
+(See http://catern.com/config.html)
 
-In TSS Integration, the same functions and types are used for both production and testing.
+In TSS Integration,
+the same functions and types are used for both production and testing.
 
-Different environments are built out of those components,
-using the technique we just saw.
+Different environments are built for production and testing,
+out of the same components;
+one environment might be for TSS, and the other for TSI.
 
-Just one more nice thing with this approach,
-you can interact with a running system using the REPL or debugger.
+*** You can interact with a running system using the REPL or debugger
+A minor nice feature...
 
-And we do that heavily with TSS Integration,
+We do this heavily with TSS Integration,
 when debugging a system or manipulating it in an ad-hoc way.
+
+#+begin_src python
+>> i = start_i(...)
+<I object at 0x7fb3a45a4290>
+>> j = start_j(i, ...)
+<J object at 0x7fb3a45a4490>
+>> j.url
+"https://example.com"
+#+end_src
 
-*** In-depth example of writing a test with TSS Integration
+So that's how TSS Integration approaches running the system.
+
+** In-depth example of writing a test with TSS Integration
 We'll look at TPS, the Two sigma Position Service.
 
-What it actually does is not relevant, but...
+What it actually does is not actually relevant, but...
 
 - It's an order gateway
-- Receives orders from the a mysterious source in the outside world
+- Receives orders from some mysterious source from the outside
 - Validates and possibly rejects those orders
-- Updates the TS position daemon, =posdelta=, with the fills (if the order isn't rejected)
+- Updates the TS position daemon, =posdelta=, with any fills
 
 Why TPS?
 
 - The subsystem required to support TPS is relatively small.
 - TPS is run by TSS Integration in production.
 
-This example is not meant to be practically useful.
-
-Goal:
-See how the principles we just discussed are put into practice.
+Our goal:
+Put the principles we just discussed into practice
 
-- Pretend we're writing the first tests for TPS
+Pretend:
+- We're writing the first tests for TPS
   (Normally we'd use the existing =integration/tests/test_tps.py=)
-- We've written TPS types and functions already,
-  now let's set up an environment with TPS!
+- But we have written TPS types and functions already
+- Now let's set up an environment with TPS!
 
 We start with a =TrioTestCase= (an async-enabled =unittest.TestCase=)
 
+We won't show anything async in this example,
+so just ignore the =async= and =await= keywords.
 #+begin_src python
-from integration.tps import start_tps
-from integration.lib.trio_test_case import TrioTestCase
+class TestTPS(TrioTestCase):
+    async def asyncSetUp(self) -> None:
+        self.tps = await start_tps(...)
 
-class TestTPS(TestCase):
-    def setUp(self) -> None:
-        self.tps = start_tps(...)
-
-    def test(self) -> None:
+    async def test(self) -> None:
         self.assertTrue("Do test stuff")
 #+end_src
 
-We'll start up TPS in =setUp= by calling =start_tps=,
+We'll start up TPS in =asyncSetUp= by calling =start_tps=,
 and perform the actual test in =test=.
 
 #+begin_src python
@@ -482,15 +488,14 @@ async def start_tps(
   ...
 #+end_src
 
-
 #+begin_src python
   nursery: trio.Nursery,
 #+end_src
 
 - From the open source =trio= library
 - Used to start up background asynchronous tasks and detect if they fail
-- =TrioTestCase= comes with a =trio.Nursery= which fails the test
-  if anything in the background fails
+- =self.nursery= (from =TrioTestCase=) is a =trio.Nursery=
+  which fails the test if anything in the background fails
 
 #+begin_src python
         self.tps = await start_tps(
@@ -498,6 +503,9 @@ async def start_tps(
             ...,
         )
 #+end_src
+
+For more info on trio see:
+https://trio.readthedocs.io/en/stable/tutorial.html
 
 #+begin_src python
   thread: Thread,
@@ -517,6 +525,9 @@ from rsyscall import local_thread
             ...,
         )
 #+end_src
+
+For more info on rsyscall see:
+https://github.com/catern/rsyscall
 
 #+begin_src python
   listening_sock: FileDescriptor,
@@ -547,12 +558,9 @@ from rsyscall.netinet.in_ import SockaddrIn
 #+end_src
 
 - Used by TPS as a backend and persistence mechanism
-- SQLite will work fine for a test
-- =Database.make= creates a SQLite DB and initializes the TPS database schema
-- We need a path for the database;
-  we'll use =make_location= to make a temporary directory
-- We use =self.thread= again,
-  so the database is created on the same host as everything else
+- A SQLite DB will work fine for a test
+- =Database.make= will create the DB and initialize it with the TPS schema
+- =make_location= returns a directory to store the DB and any other state
 
 #+begin_src python
 from integration.lib.utils import make_location
@@ -561,7 +569,9 @@ from integration.tps import Database
         self.location = make_location()
         self.tps = await start_tps(
             ...,
-            await Database.make(self.thread, self.location/"tps.db"),
+            # Use self.thread to make the DB on the right host
+            await Database.make(
+                self.thread, self.location/"tps.db"),
             ...,
         )
 #+end_src
@@ -571,33 +581,24 @@ from integration.tps import Database
 #+end_src
 
 - A service which distributes position updates to clients
+- We'll start it with =start_posdelta=
 
 #+begin_src python
 async def start_posdelta(
-    nursery: trio.Nursery, workdir: Path,
-    static_data: StaticData=None,
-    cpu: cpuset.Cpu=None, order_map_size: int=2048,
-    filters: t.List[IqsyncFilter]=[],
+    nursery: trio.Nursery, thread: Thread, workdir: Path,
+    ..., # some optional arguments, not relevant here
 ) -> Posdelta:
 #+end_src
 
-- Mostly optional, for customizations we don't care about
-
-#+begin_src python
-async def start_posdelta(
-    nursery: trio.Nursery, workdir: Path,
-    ...,
-) -> Posdelta:
-#+end_src
-
-- We already have a =trio.Nursery=
-- workdir is a directory for the service to store its state;
-  we can make it under the directory we made with =make_location= earlier
+- We'll pass the same =trio.Nursery= and =Thread= as we passed to =start_tps=
+- =workdir= here is a directory to store state (many daemons need one)
+- We can make a subdirectory under the directory from =make_location=
 
 #+begin_src python
         self.tps = await start_tps(
             ...,
-            await start_posdelta(self.nursery, (self.location/"posdelta").mkdir()),
+            await start_posdelta(
+                self.nursery, self.thread, (self.location/"posdelta").mkdir()),
             ...,
         )
 #+end_src
@@ -606,8 +607,8 @@ async def start_posdelta(
   publishing_iqueue: PassthroughPublishingIqueue,
 #+end_src
 
-- A type of iqueue (a filesystem-based shared memory communication transport)
-- Used by several different services (not just TPS) to publish positions to posdelta
+- An iqueue (a filesystem-based shared memory communication transport)
+- Used by several different services to publish positions to posdelta
 
 #+begin_src python
 class PassthroughPublishingIqueue:
@@ -615,19 +616,20 @@ class PassthroughPublishingIqueue:
     async def make(
         thread: Thread,
         path: Path,
-        src_id: int=0,
+        ...,
     ) -> PassthroughPublishingIqueue: ...
 #+end_src
 
-- We need a =Thread= and a =Path=, to identify the host and path at which to create the iqueue
-- The last argument is optional and irrelevant to us for these tests
+- We need a =Thread= and a =Path=,
+  to identify the host and path on which to create the iqueue
 
 #+begin_src python
 from integration.tps import PassthroughPublishingIqueue
 
         self.tps = await start_tps(
             ...,
-            await PassthroughPublishingIqueue.make(self.thread, self.location/"tps.iqx")
+            await PassthroughPublishingIqueue.make(
+                self.thread, self.location/"tps.iqx")
             ...,
         )
 #+end_src
@@ -642,14 +644,14 @@ from integration.tps import PassthroughPublishingIqueue
 #+begin_src python
 from integration.static_data import StaticData
 
-        self.static_data = await StaticData.make(self.thread, (self.location/"static_data").mkdir())
+        self.static_data = await StaticData.make(
+            self.thread, (self.location/"static_data").mkdir())
         self.tps = await start_tps(
             ...,
             self.static_data,
-            ...)
+        )
 #+end_src
 
-
 That's everything!
 
 #+begin_src python
@@ -666,19 +668,22 @@ class TestTPS(TrioTestCase):
         sock = await self.thread.socket(AF.INET, SOCK.STREAM)
         await sock.bind(await self.thread.ptr(SockaddrIn(0, "127.0.0.1")))
         await sock.listen(1024)
-        self.static_data = await StaticData.make(self.thread, (self.location/"static_data").mkdir()),
+        self.static_data = await StaticData.make(
+            self.thread, (self.location/"static_data").mkdir())
         self.tps = await start_tps(
             self.nursery,
             self.thread,
             sock,
-            await Database.make(self.thread, self.location/"tps.db"),
-            await start_posdelta(self.nursery, (self.location/"posdelta").mkdir()),
-            await PassthroughPublishingIqueue.make(self.thread, self.location/"tps.iqx"),
+            await Database.make(
+                self.thread, self.location/"tps.db"),
+            await start_posdelta(
+                self.nursery, self.thread, (self.location/"posdelta").mkdir()),
+            await PassthroughPublishingIqueue.make(
+                self.thread, self.location/"tps.iqx"),
             self.static_data,
         )
 #+end_src
 
-
 Now we start up the Python client for TPS.
 The TPS class contains the connection details for TPS,
 and helpfully exposes a =make_client= method.
@@ -689,24 +694,24 @@ and helpfully exposes a =make_client= method.
         self.client = await self.tps.make_client()
 #+end_src
 
-
 Just send an order and a fill through, for an arbitrary instrument
 
 #+begin_src python
     async def test(self) -> None:
-        order = await self.client.new_order('buy', 100, self.static_data.instruments[0], Decimal('50.0'))
-        await order.fill(100, Decimal('50.0')
+        order = await self.client.new_order(
+            'buy', 100, self.static_data.instruments[0], Decimal('50.0'))
+        await order.fill(100, Decimal('50.0'))
 #+end_src
 
 - This is a complete test (for one kind of event)
 - The client (as in production) checks various invariants
 - If they're violated, we'll get an exception
 - If TPS has an error or crashes, we'll get an exception
-- We normally would include other relevant components to test interaction with them too
+- Normally would include other relevant components to enhance the test
 
-* Conclusion
+* Closing remarks and questions
 
-By making it easy and fast to run the system,
+By making it easy and fast to run the system anywhere,
 we've improved our ability to test.
 
 Areas for future development:
@@ -714,24 +719,76 @@ Areas for future development:
 - Usage by more teams
 - More production usage
 
-More significant, speculative and long-term development:
+More significant long-term development:
 - Usage outside Trading Engineering
+  (Seigniorage project?)
 
-Would you like to know more?
-- Now, ask me questions
+How to get started?
+
+Add your daemons to TSS Integration, or write your own library
+
+- First, understand the service dependencies of your system
+- The rest is just work
+- But it's worth it! And then the dependencies are forever codified
+
+Would you like to know more? Or get help starting?
+- Shortly, ask me questions
 - Later, feel free to join #x-tss-integration and ask
-- Look at https://gitlab.twosigma.com/main/ts.d/tss.d/integration-git/-/blob/master/README.org
+- Look at
+  https://gitlab.twosigma.com/main/ts.d/tss.d/integration-git/-/blob/master/README.org
 
 Hopefully this talk has provided some evidence to you
 about the importance of being able to run your system.
-** TODO end section
-*** further elements from README.org
-    like the use of REPLs, maybe
-*** ending
-    Should reaffirm the importance of being able to run your system
-
-    (everywhere, and on the fly?)
+
 * planning
+** DONE history section
+   make smaller?
+   maybe move the python details to the example section?
+
+   boopy was impatient about them
+** TODO slides
+   make text as big as possible
+
+   and have margins
+   (setq left-margin-width 10) maybe?
+** DONE boopy feedback
+   will these slides be available?
+   
+   margins and big text please!!
+
+   don't say "this example is useless"
+   in the example section, lol
+
+   say how to get started/onboarded at the end
+
+   enthusiastically say it's great and very good
+   talk about how awesome it is,
+   use an emotional appeal
+   say it's an investment but it's worth it
+
+   recursive part of the example was maybe too much
+   start_posdelta
+   maybe skip the optional arguments?
+   you're already explaining how to start a service
+   it's jarring to start over
+   maybe just say, we'd recurse?
+   maybe not even show the arguments?
+   (I want to show that services vary in complexity to start;
+   but boopy says, maybe just show that?)
+** TODO remaining boopy feedback
+   include lines of code??
+
+   include feature matrix
+
+   a list of features...
+   i guesssss that could be handy
+   like "doesn't leak processes"
+   "easy to clean up after, everything goes in a single directory"
+   "runs anywhere, including pre-push, homeservers, or colo"
+   "requires no special admin privileges"
+   - optimised process startup to avoid the usual monorepo high per-process startup delays
+   - distributed execution, can run across multiple hosts
+   - arbitrary universes, can run daemons from different universes together
 ** TODO testing section
    hmm okay, we want to communicate some of those testing ideas...
    maybe they're more appropriate for the philosophy section.
@@ -767,7 +824,13 @@ about the importance of being able to run your system.
     although, if I don't mention it...
     it doesn't necessarily say that we *don't* include assertions in other tests.
     just that this one is a complete test.
-okay fine coool nice
+** TODO end section
+*** further elements from README.org
+    like the use of REPLs, maybe
+*** ending
+    Should reaffirm the importance of being able to run your system
+
+    (everywhere, and on the fly?)
 * let's actually think
   what should we actually put in the talk?
 
@@ -803,7 +866,7 @@ okay fine coool nice
    given that you will certainly not lavish effort on the test that doesn't even run in prod?
 
    wrote that post!
-** post about repl/ide/stuff as UI?
+** TODO post about repl/ide/stuff as UI?
    hm.
 
    yeah, like... the continuum between a UI,
@@ -811,6 +874,29 @@ okay fine coool nice
    and how you might want to just,
    compose these objects,
    as an easy way to make a UI..
+
+   hmmm
+
+   also maybe the relationship between like...
+   manipulating a UI and programming
+
+   so several things:
+
+   - a repl is a passable UI
+   - you can generate a UI from objects and types and declarations
+   - manipulating a UI can be a kind of programming;
+     macros are one way to breathe fire into this,
+     but it seems like there could be other ways
+** TODO reformat old posts
+   this is completely unrelated but...
+   perhaps I should reformat those two old posts I made before ICFP 2017
+** TODO rework whole site
+   I think I have enough content now that I wouldn't feel weird about doing it...
+
+   we can just keep the old posts around and point at them with links...
+
+   and at the bottom of the main page I can say,
+   "for dates and authorship information, clone this site with git"
 ** ending stuff
    I guess I should just recap the points really.
    run your system,
