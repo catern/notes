@@ -714,6 +714,21 @@ Just send an order and a fill through, for an arbitrary instrument
 By making it easy and fast to run the system anywhere,
 we've improved our ability to test.
 
+Summary list of features:
+- type-safe composition and configuration of services without limits
+- safe for prod
+- runs anywhere, including pre-push, homeservers, or colo
+- requires no special privileges
+- doesn't depend on any outside services, totally self-contained
+- can be used interactively from a REPL or debugger
+- optimised process startup to avoid the usual monorepo high per-process startup delays
+- distributed execution, can run across multiple hosts
+- arbitrary universes, can run daemons from different universes together
+- monitors processes at all times so that any process exits will be detected
+- processes can be pinned to CPUs
+- doesn't leave stray processes behind
+- easy to clean up after, everything goes in a single directory
+
 Areas for future development:
 - Support for more daemons
 - Usage by more teams
@@ -782,13 +797,22 @@ about the importance of being able to run your system.
 
    a list of features...
    i guesssss that could be handy
-   like "doesn't leak processes"
-   "easy to clean up after, everything goes in a single directory"
-   "runs anywhere, including pre-push, homeservers, or colo"
-   "requires no special admin privileges"
+   like
+   - type-safe composition and configuration of services without limits
+   - safe for prod
+   - doesn't leave stray processes behind
+   - easy to clean up after, everything goes in a single directory
+   - runs anywhere, including pre-push, homeservers, or colo
+   - requires no special privileges
+   - doesn't depend on any outside services, totally self-contained
    - optimised process startup to avoid the usual monorepo high per-process startup delays
    - distributed execution, can run across multiple hosts
    - arbitrary universes, can run daemons from different universes together
+   - monitors processes at all times so that any process exits will be detected
+   - processes can be pinned to CPUs
+   - can be used interactively from a REPL or debugger
+
+   lines of code... nah...
 ** TODO testing section
    hmm okay, we want to communicate some of those testing ideas...
    maybe they're more appropriate for the philosophy section.
