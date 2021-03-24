@@ -260,7 +260,7 @@ Here's one explanation:
 - Everything makes assumptions about everything else
 - If those assumptions are violated, things fail
 - So, to test, just run the system
-- The more you run,
+- The more components you run,
   the more confident you can be if nothing fails
 - (This is why testing in prod is so tempting!)
 
@@ -277,11 +277,11 @@ So how do we run the system?
 There is no common service framework.
 
 - Many teams producing many daemons
-- C++, C, Java, Python, etc
+- Languages: C++, C, Java, Python
 - Configuration: properties, CSVs, YAML, env vars
-- Protocols: JSON, Protocolgen, Protobuf, etc
-- Transports: UDP, TCP, mqueue, iqueue, msgbox, etc
-- Etc!
+- Protocols: JSON, Protocolgen, Protobuf
+- Transports: UDP, TCP, mqueue, iqueue, msgbox
+- And more!
 
 Our solution has to handle all this.
 
@@ -369,10 +369,11 @@ Want to start service A?
 You need instances of =B= and =C= first,
 from =start_b= and =start_c=!
 
-TSS Integration defines such types and functions
-for all the services in the trading system.
-
-These objects have all the info to use the service.
+TSS Integration:
+- Defines a class for each component
+- Puts all the info to use the service in the class
+- Defines functions to create those components,
+  which take the dependencies as arguments
 
 *** You can keep track of complex values using types
 Service D can listen on either an HTTP or HTTP2 URL.
@@ -395,9 +396,14 @@ The type argument to the =D= class
 specifies the type of =d.url=.
 (Like Java generics or C++ templates)
 
+One example in TSS Integration:
+HFMD tickerplant clients can publish over
+- msgbox
+- mqueue
+- jtmqueue
+Types ensure services get the transport they expect
+
 *** Create different envs by passing different args
-Different use cases need different configurations.
-
 Service F has an optional dependency on service G;
 F behaves differently if service G is provided.
 
@@ -425,7 +431,10 @@ each where appropriate.
 (See http://catern.com/config.html)
 
 In TSS Integration,
-production and tests build different environments,
+- production/tests/benchmarking
+- TSS/TSI
+- equities/futures/options
+All build different environments,
 out of the same components (functions and types).
 
 
@@ -452,7 +461,7 @@ So that's how TSS Integration provides
 
 TPS, the Two sigma Position Service.
 
-- It's an order gateway (kinda...)
+- It's an order gateway (essentially)
 - Receives orders from the outside world
 - Validates and possibly rejects those orders
 - Updates another daemon, =posdelta=, with fills
@@ -512,6 +521,7 @@ async def start_tps(
   which fails the test if any background task fails
 
 #+begin_src python
+    async def asyncSetUp(self) -> None:
         self.tps = await start_tps(
             self.nursery,
             ...,
@@ -552,9 +562,6 @@ https://github.com/catern/rsyscall
 - Standard Unix socket programming
 
 #+begin_src python
-from rsyscall.socket import AF, SOCK
-from rsyscall.netinet.in_ import SockaddrIn
-
         # make a TCP socket
         sock = await self.thread.socket(
             AF.INET, SOCK.STREAM)
@@ -692,7 +699,7 @@ class TestTPS(TrioTestCase):
 #+end_src
 
 Now we start up the Python client for TPS.
-The TPS class contains the connection details for TPS,
+The TPS class has the connection details for TPS,
 and helpfully exposes a =make_client= method.
 
 #+begin_src python
@@ -716,14 +723,14 @@ Just send an order and fill, for some instrument
 - The client (as in production) checks invariants
 - If they're violated, we'll get an exception
 - If TPS errors or crashes, we'll get an exception
-- Usually, we'd have more components for more coverage
+- Usually, we'd have more services for more coverage
 
 * Closing remarks and questions
 
-By making it easy and fast to run the system anywhere,
+By making it easy to run the system,
 we've improved our ability to test.
 
-Summary list of features:
+Summary list of features (for later review):
 - type-safe composition and configuration of services without limits
 - safe for prod
 - runs anywhere, including pre-push, homeservers, or colo
@@ -759,12 +766,12 @@ or write your own library
 
 Would you like to know more? Or get help starting?
 - Shortly, ask me questions
-- Later, feel free to join #x-tss-integration and ask
+- Later, feel free to join #x-tss-integration
 - Look at ts/tss/integration/README.org
   https://gitlab.twosigma.com/main/ts.d/tss.d/integration-git/-/blob/master/README.org
 
-Hopefully this talk has provided some evidence to you
-about the importance of being able to run your system.
+Hopefully this talk has shown you
+the importance of being able to run your system.
 
 * planning
 ** DONE history section
