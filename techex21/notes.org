@@ -198,7 +198,7 @@ TSS Integration is:
 - We chose Python so that it could be widely used
 
 To give a sense of scale:
-- Supports ~100 different daemons, across 8 teams.
+- Supports ~100 different services, across 8 teams.
 - Always growing!
 
 But what does it actually do?
@@ -274,12 +274,11 @@ in a flexible, robust, portable, self-contained way.
 
 So how do we run the system?
 
-There is no common service framework.
+There's many different kinds of services.
 
-- Many teams producing many daemons
 - Languages: C++, C, Java, Python
-- Configuration: properties, CSVs, YAML, env vars
-- Protocols: JSON, Protocolgen, Protobuf
+- Configuration: CSVs, properties, YAML, env vars
+- Protocols: Protocolgen, Protobuf, JSON
 - Transports: UDP, TCP, mqueue, iqueue, msgbox
 - And more!
 
@@ -348,6 +347,7 @@ We can express this with a function!
 
 #+begin_src python
 def start_a(b: B, c: C) -> A:
+    "Start an instance of the A service"
     ...
     start_process([
       "/bin/a",
@@ -464,7 +464,7 @@ TPS, the Two sigma Position Service.
 - It's an order gateway (essentially)
 - Receives orders from the outside world
 - Validates and possibly rejects those orders
-- Updates another daemon, =posdelta=, with fills
+- Updates another service, =posdelta=, with fills
 
 
 Why TPS?
@@ -725,7 +725,7 @@ Just send an order and fill, for some instrument
 - If TPS errors or crashes, we'll get an exception
 - Usually, we'd have more services for more coverage
 
-* Closing remarks and questions
+** Closing remarks and questions
 
 By making it easy to run the system,
 we've improved our ability to test.
@@ -739,14 +739,14 @@ Summary list of features (for later review):
 - can be used interactively from a REPL or debugger
 - optimised process startup to avoid the usual monorepo high per-process startup delays
 - distributed execution, can run across multiple hosts
-- arbitrary universes, can run daemons from different universes together
+- arbitrary universes, can run services from different universes together
 - monitors processes at all times so that any process exits will be detected
 - processes can be pinned to CPUs
 - doesn't leave stray processes behind
 - easy to clean up after, everything goes in a single directory
 
 Areas for future development:
-- Support for more daemons
+- Support for more services
 - Usage by more teams
 - More production usage
 
@@ -756,7 +756,7 @@ More significant long-term development:
 
 How to get started?
 
-Add your daemons to TSS Integration,
+Add your services to TSS Integration,
 or write your own library
 
 - First, understand your service dependencies
@@ -825,7 +825,7 @@ the importance of being able to run your system.
    - doesn't depend on any outside services, totally self-contained
    - optimised process startup to avoid the usual monorepo high per-process startup delays
    - distributed execution, can run across multiple hosts
-   - arbitrary universes, can run daemons from different universes together
+   - arbitrary universes, can run services from different universes together
    - monitors processes at all times so that any process exits will be detected
    - processes can be pinned to CPUs
    - can be used interactively from a REPL or debugger
