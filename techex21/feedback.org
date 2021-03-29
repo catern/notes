@@ -1,0 +1,179 @@
+expecting pushback on this kind of presentation
+* feedback
+** was maybe a little long
+   I took 37 minutes and was almost done
+
+   should try and shorten
+** they don't like "There's no common service framework"
+   "cuz there is one, just not in TE"
+
+   Leah figures there's some reason I'm not using Kubernetes, that's fine
+
+   but they want to make sure they're giving the right guidance for people
+
+   okay, I won't mislead them too much
+** the fact that it's used in production as well
+   maybe include a concrete example in that?
+*** now we've set up everything,
+    we could run this in prod,
+    or we could run a test in this
+** leah wasn't clear that the examples (of start_a etc) are not tests
+   maybe should clarify that...
+   and more emphasize production usage
+** DONE avoid the word daemon
+** show impact
+   of some complicated thing you can start up using this approach
+
+   a diagram
+*** some kind of number or indication of how we use this in prod
+** diagrams
+   show impact
+
+   show examples
+* gracenin feedback
+** explanations were clear
+** he liked how they went through the start function one by one
+*** maybe go through arguments one by one at the beginning?
+    not the end
+* my todo
+** DONE remove the word daemon
+** DONE service framework thing
+   just changed to say "There's many different kinds of services"
+** DONE diagrams
+*** put a nice diagram of some complex system we start up
+    what would be really nice is to automatically generate the diagram, sigh.
+
+    hmm let's try pycallgraph I guess
+
+    oh!! no!!!
+
+    all I have to do is,
+    render the AST!
+
+    just parse the AST of an environment function,
+
+    name each expression,
+
+    and render the graph of the dependencies of the expressions!
+
+    I guess variable names are the names for expressions;
+
+    other expressions... I'll just nest inside?
+
+    but I really do need ssa form hmm
+
+    okay... what if I just evaluate it?
+
+    then I get a full expression,
+    with tags...
+
+    and... I can just turn that nested object,
+    into a graph. ez.
+
+    oh hey this is really the same thing as that earlier, turn a test into text thing.
+
+    i need to do some tagless final style evaluation of the setup function, kinda thing.
+
+    okay so...
+    i'll have some things prepped ahead of time, like uh,
+    make_location.
+
+    and then I'll just... run the function in that environment?
+
+    i'll have a getattr implemented to handle any not-explicitly-handled functions/variables
+    which will return just Node(stringname)
+
+    and Node will implement __call__ and return some kind of FunctionCall(fname, args)
+
+    then I'll end up with some expressions at the end;
+    which will be in fields on self, I guess,
+    and I guess will be partially labeled with names.
+
+    and I'll just print that big expression?
+    (annotated with names somehow)
+    (and somehow finding the largest expression - maybe just print all of them and dedup
+
+    okay and I'll put this in rsyscall
+**** keep notes
+Or maybe when I make a function call... I just print an arrow? A bunch of arrows, rather?
+
+I create a node, of course... I guess...
+
+Well... I suppose I don't want to create nodes for functions themselves...
+
+So at a function call, I make a node for the call, and make a node for each arg.
+And I add arrows to each arg.
+
+But wait, then we're duplicating nodes, since when that function result is used later we'll add more nodes.... Maybe?
+
+Right so I render a function call by rendering each argument - 
+which may already have been rendered in which case it's a node name,
+or it might be a python value in which case I need to render it anew.
+
+And what I return from a function call is the node name that will be in the graph. Nice.
+
+And then I can attach the fields on self as identifiers for the nodes in the graph. Perfect.
+
+Right okay so we have two types... Symbol, which is just some symbol, and which supports function application.
+And Node, which is something that has been rendered in the graph.
+
+And of course there's every other python type too, which we might encounter.  
+**** just build the graph directly
+okay so I'll just build the graph directly, with Symbols and Nodes
+
+hmm what if I have two places which render the same Symbol?
+purr-haps I should just render it as a Node immediately,
+then...
+
+blah okay or, better yet,
+I'll just have a Symbol.render() which lazily renders the Symbol,
+and stores the Node inside the Symbol.
+
+and yeah, Symbol has __call__ and Node does not
+
+ok two places rendering the same symbol are fine,
+we'll just render it twice.
+
+i mean, in practice I don't think this will be an issue, so.
+*** more diagrams
+    these are important for monday, I guess
+
+    yeah I can put the diagram up on the side I guess
+
+    diagrams for each of the type examples would be good
+
+    or maybe, just for the (B, C) -> A example,
+    yeah, in the exaplanation of the problem
+** DONE put docstrings on the start_a example functions!
+** TODO maybe revamp?
+   to remove the "it's not testing" part?
+* boopy feedback
+** don't say it's not testing
+   that's kinda pointless and distracting
+
+   instead say what it is.
+
+   positive not negative.
+** maybe just go ahead and say what it is up front?
+   (boopy: say it three times)
+
+   along with the diagram that gracenin suggested,
+   a diagram showing how we set up the system
+* talk to highway feedback
+** have a better stock answer to how this interacts with prod
+   and how this is reconciled with prod
+
+   one thing to say: "this is more accurate than prod"
+** someone asked about how to prevent starting services multiple times
+** TODO have a supplementary example of distributed execution
+   after my last slide
+** DONE elina: what does self-contained mean?
+   she maybe thought it meant bp5 interaction?
+
+   but I guess I should clarify that it means, like, no talking to celfs or golden core, etc.
+
+   no network services
+
+   I'll just delete that "self-contained" word
+
+   that seems like a full fix
