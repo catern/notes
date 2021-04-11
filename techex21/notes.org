@@ -508,8 +508,6 @@ async def start_tps(
   listening_sock: FileDescriptor,
   database: integration.tps.Database,
   posdelta: Posdelta,
-  publishing_iqueue: PassthroughPublishingIqueue,
-  static_data: StaticData,
 ) -> TPS:
   ...
 #+end_src
@@ -629,50 +627,6 @@ async def start_posdelta(
         )
 #+end_src
 
-#+begin_src python
-  publishing_iqueue: PassthroughPublishingIqueue,
-#+end_src
-
-- iqueue: a filesystem-based shared memory transport
-- This type is used to publish positions to posdelta
-
-#+begin_src python
-class PassthroughPublishingIqueue:
-    @staticmethod
-    async def make(
-        thread: Thread, path: Path,
-    ) -> PassthroughPublishingIqueue: ...
-#+end_src
-
-- The iqueue is made on some host (=Thread=),
-  and at some path (=Path=).
-
-#+begin_src python
-        self.tps = await start_tps(
-            ...,
-            await PassthroughPublishingIqueue.make(
-                self.thread, self.location/"tps.iqx")
-            ...,
-        )
-#+end_src
-
-#+begin_src python
-  static_data: StaticData,
-#+end_src
-
-- Instrument reference data, stored in files on disk
-- Used by many services
-
-#+begin_src python
-        self.static_data = await StaticData.make(
-            self.thread,
-            (self.location/"static_data").mkdir())
-        self.tps = await start_tps(
-            ...,
-            self.static_data,
-        )
-#+end_src
-
 That's everything!
 
 #+begin_src python
@@ -684,9 +638,6 @@ class TestTPS(TrioTestCase):
         addr = SockaddrIn(0, "127.0.0.1")
         await sock.bind(await self.thread.ptr(addr))
         await sock.listen(1024)
-        self.static_data = await StaticData.make(
-            self.thread,
-            (self.location/"static_data").mkdir())
         self.tps = await start_tps(
             self.nursery, self.thread,
             sock,
@@ -695,9 +646,6 @@ class TestTPS(TrioTestCase):
             await start_posdelta(
                 self.nursery, self.thread,
                 (self.location/"posdelta").mkdir()),
-            await PassthroughPublishingIqueue.make(
-                self.thread, self.location/"tps.iqx"),
-            self.static_data,
         )
 #+end_src
 
@@ -716,8 +664,7 @@ Just send an order and fill, for some instrument
 #+begin_src python
     async def test(self) -> None:
         order = await self.client.new_order(
-            'buy', 100,
-            self.static_data.instruments[0],
+            'buy', 100, self.tps.static_data.instruments[0],
             price=Decimal('50.0'))
         await order.fill(100, Decimal('50.0'))
 #+end_src
