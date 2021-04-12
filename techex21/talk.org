@@ -3,9 +3,9 @@
 [[./logo.jpg]]
 
 ** Who is this guy?
-Spencer Baugh
-Modern Infrastructure for Trading Systems (MITS) [[./mitts.jpg]]
-Two Sigma Securities (TSS) [[./hihat.jpg]]
+- Spencer Baugh
+- Modern Infrastructure for Trading Systems (MITS) [[./mitts.jpg]]
+- Two Sigma Securities (TSS) [[./hihat.jpg]]
 
 Talk is about:
 Testing in TSS with the "TSS Integration" library
