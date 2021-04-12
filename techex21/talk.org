@@ -39,7 +39,7 @@ Scale:
 - Used in production for 6 services
 - Always growing!
 
-Develops mainly in two ways:
+Improves mainly in two ways:
 - A cross-team change is tested with TSS Integration,
   which expands to cover more services.
 - An individual team wants to write new tests,
