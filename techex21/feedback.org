@@ -165,7 +165,7 @@ i mean, in practice I don't think this will be an issue, so.
 
    one thing to say: "this is more accurate than prod"
 ** someone asked about how to prevent starting services multiple times
-** TODO have a supplementary example of distributed execution
+** DONE have a supplementary example of distributed execution
    after my last slide
 ** DONE elina: what does self-contained mean?
    she maybe thought it meant bp5 interaction?
@@ -177,3 +177,367 @@ i mean, in practice I don't think this will be an issue, so.
    I'll just delete that "self-contained" word
 
    that seems like a full fix
+* questions
+** 
+to use this, how much uptake do I need from the teams I depend on
+** 
+i don't think i needed to know all 7 parameters
+** i was getting lost in the in-depth examples
+** i loved that you could go back and forth from the examples
+** onboarding
+*** maybe be a little more concrete about path to achieve this
+    how did my team achieve this?
+
+    how can another team achieve this?
+
+    the question-asker mentioned FTEs and things
+** more pictures
+** make bullet points more short
+   not long sentences
+** taz
+*** 
+what's it like in prod
+*** what does the environment
+*** why is the environment these parameters
+*** make it clear that start_tps is completely specific to TPS
+   the arguments are not generalized
+
+   each start function has its own argument
+* my to do list
+** DONE kill off several of the start_tps arguments
+   this should be fine.
+
+   hjmmmmmmmmm
+
+   ok so we clearly need nursery, thread, posdelta, listening sock, static data
+
+   we can replace database and publishing iqueue with a single arg maybe somehow...
+   the workdir...
+   but it's annoying that we have to... probe to see if there's already data in the workdir.
+
+   we want to be... a little more explicit?
+
+   well, in the wrapper, we... copy the workdir to a new place.
+   and then pass it in...
+   right now we don't have to probe in start_tps to see if the iqueue and database already exist
+   we just know that they do. hmmmm
+
+   okay what about... like...
+   we pass workdir: Union[Path, State]
+
+   and if it's a path we create a state,
+   and if it's a state we just use that.
+
+   but that's bad, urgh, we'd prefer to just... make the State explicitly outside and pass it in, then...
+
+   what if we connect the iqueue to posdelta externally?
+   oh but it needs to read posdelta too, so we aren't avoiding an argument then.
+
+   ok so what we're considering here, is like,
+   state which is private to the daemon/object,
+   and which is initialized by the daemon/object.
+
+   ehhhh let's just skip the last two arguments, it's fine...
+
+   yeah I mean I guess an opaque State object might be helpful...
+
+   it would change two arguments into one...
+
+   and would allow us to ignore the "internal details" of the dependency on these kinds of state...
+
+   but it's not super desired here because it makes the example less approachable and a little more abstract.
+
+   ok we'll just delete two arguments,
+   and keep in mind "State" for the future.
+** DONE further shorten sentences I guess
+   eh I think it's fine?
+** DONE add some pictures
+   I guess it can't hurt
+
+   ok I add the logo...
+
+   people want a diagram and they also talk about showing IPC...
+*** DONE diagrams for each of the philosophical examples
+    okay I like the digrams I have now, nice
+*** bar chart of tss/integration vs egregression line counts
+    eh I don't really need this
+*** TODO inane pictures and memes and things
+    yes, I can make the talk more funny this way
+
+    ok we add the mitts and the hi-hat, need to find another way to make a joke hmm...
+** DONE deep diagram and/or showing IPC
+   ok so why don't I want to show this?
+   because the IPC is irrelevant...
+
+   boopy says it could be interesting...
+
+   it might be that people are not clear on, like, how the IPC works
+   how do the things get connected??
+
+   so... maybe I could show like...
+   what? I'm just not sure
+
+   maybe I should show what the TPS object contains?
+   yeah, I'll say that it has the URL of TPS inside it
+
+   okay is that... enough?
+   should we, like, show a TPS diagram that is being iteratively built up?
+   that would be annoying...
+   but could be good...
+
+   well... we'd want to have the full diagram on-screen...
+
+   yeah okay so let's just make a diagram for each dependency in the example, sure.
+
+   and also diagrams for the philosophical examples (worthlessly but whatever)
+
+   no ugh I don't want diagrams for the test examples
+
+   aha okay i put the diagrams up and actually I think it's fine and good
+   and I think I'm sufficiently exploring IPC now
+
+   so we'll punt on deep diagram investigation
+** DONE explicitly say that TPS has a URL inside it, and we use HTTP to connect to it
+   So that's clear... and that might satisfy the desire for talking about IPC
+** DONE consider adding more history about how we got here
+   and how someone else could get here too
+
+   so I think this is the major thing missing
+
+   we could add this around the onboarding section...
+
+   ok so what do I want to say?
+
+   I don't really think about the organizational stuff...
+   but I guess that might be interesting for people.
+   I mean, the *truth* is that I just worked on it endlessly myself
+
+   hmMmm
+   I invested way more into it than others would
+   and that's how we got here.
+
+   well, others contributed as well, especially today,
+   but the question is how did we bootstrap to making that viable?
+   
+   I guess I could say, before we had a set of tests, whatever,
+   and we reduced line counts cool, see graph of cloc
+*** my advice
+    so as a project we'd go one service at a time
+
+    each time we needed some new feature we'd expand integration testing to cover it
+
+    keep in mind you aren't going to break this down to individually trivial parts;
+    onboarding a given service might be trivial,
+    or it might require a deep understanding
+    and require dealing with other dependencies you didn't even know about.
+
+    so you need to be able to take it seriously as a goal, not just a side effect,
+    and budget for that possible difficulty.
+    if a given service doesn't end up being that difficult,
+    you can put that surplus time into polishing the service implementation
+    and its interaction with other services.
+
+    i'd say a budget of 1-2 weeks of FTE time per service,
+    which includes the development of basic tests for that service.
+    that includes the wide variance between trivial services,
+    which will take a day or less to understand their dependencies and document them in the code,
+    and really difficult services which might take a lot of time.
+
+    for us,
+    we're at the point where every new service we add,
+    we know we'll use a lot in the future,
+    and we know roughly how we'll use it.
+    so it's not really worth accruing tech debt for us.
+    it's cheaper to do it right up front instead of taking shortcuts.
+
+    of course, it's different if you're new to this and you're not sure if you'll really stick to it.
+
+    anyway so that's our story:
+
+    we added incrementally with each new feature developed,
+    both features purely internal to MITS
+    and features which services from other teams.
+
+    gradually we accumulated a wide range of support.
+
+    we generally avoided quick easy implementations,
+    and instead took the time to do it right,
+    and properly integrate with the rest of the system.
+
+    this was because even early on we knew that this system was valuable,
+    from how easy it made many things that had previously been difficult,
+    like running one-off copies of the system for regulatory incidents,
+    or from radically reducing our maintenance burden relative to our old regression tests,
+    which were much more heavily based on mocking,
+    or when it caught serious bugs before we hit production.
+*** so
+    process for exansions
+
+    usually we've expanded at points where there is some new feature that requires cross-team integration,
+    or changes some cross-team service boundary,
+    where at least one of the teams is already in tss/integration.
+    after 3 years that leaves us at our current state.
+
+    those are areas which are generally high risk and poorly tested,
+    so an investment in testing makes a lot of sense.
+
+    we add support for the side of the boundary which is not in tss/integration.
+    this means adding support for one or more new services.
+
+    what does that look like?
+    generally, the main difficulty is getting a thorough understanding of the dependencies of the services.
+    once the dependencies are understood,
+    they can be encoded with functions and classes in ts/tss/integration.
+
+    we usually take the time to do this right, rather than quickly hack it together;
+    even in the early days, we already found TSS Integration to be very useful,
+    and we knew it would be worthwhile to invest in it properly.
+*** in history section
+    How does development work?
+
+    Two ways:
+    - On any cross-team change, we'll test it in ts/tss/integration,
+    expanding ts/tss/integration to cover more services if necessary.
+    - Individual teams periodically improve support/testing for their own services.
+** DONE REALLY add remote example
+   Xu wondered if when running remote processes we still get the same monitoring abilities
+** DONE maybe show IPC thing - Xu
+   hmm is this the same request as the other guys?
+   where they want me to zoom in and show the IPC flow between services
+
+   ok I added sufficient stuff I think
+* hi boopy
+it went good!
+
+the later part was me helping someone with some other issue -also in TSS integration
+(they complimented the talk since they saw it on friday)
+
+but anyway the talk went good!
+this one had my boss and one peer in it
+they asked questions...
+which were a bit revealing that they had inside knowledge
+but, it was good
+i just don't think i need to take their questions into account as feedback since,
+they already know a lot about the system and they can ask questions that have inside knowledge,
+that others would not
+
+my boss gave feedback later
+** DI and functions
+   I think there's some degree to which,
+   you have to take into account their popularity
+
+   like functions are very popular
+
+   crazy DI frameworks are also abstractions just like functions, but...
+   they have not stood the test of time
+
+   (they are bad)
+
+   also!!! functions are fundamentally used in math and widely known
+   they are complex implementation-wise, but they have a clear metaphor and theoretical backing
+
+   DI does not, lol
+
+   nuh uh!
+   
+   I agree it's a bit of misnomer to call them "functions",
+   but the metaphor is good and I think it helps understanding.
+   there's no such thing for DI
+
+   I think they would agree if they hate DI frameworks
+   if they love DI *frameworks* they would be offended
+
+   yeah just a java thing
+
+   yeah that sucks! true, magic though
+
+   oh there's another place that DI exists though,
+   which is the highly pertinent thing to my talk
+
+   service discovery!!!!
+
+   like you just say "hey my service is registering for name foo"
+   when you want name foo
+   you just ask for name foo
+   then you get the *ADDRESS* of the service
+   sure, but it's still the same thing!
+   symbols and DI are abstracted too!
+
+   DI: I ask for name and type, I get an implementation
+   same thing in service discovery
+
+   that's the same thing!
+   the DI god object is the same as the service discovery god object!
+
+   not really...
+   not fundamentally...
+
+   ok ok fine
+
+   but in frameworks you might not control the DI!
+
+   but fair, you usually configure the DI
+   but I still think they have strong correspondences
+   (which is the whole point of my talk)
+
+   yeah I guess so...
+   I mean...
+   oh I'm not dismissing it!!
+
+   I think it's cool - I think it's like dynamic variables kinda
+   implicitly picked up stuff from the environment
+
+   lol debatable
+
+   ok ok fair
+
+   I'm comparing it to implicit parameters - which are typed dynamic variables
+   which are very close to DI, like, literally very much the same thing...
+   well, except more flexible in some ways...
+   anyway
+
+   but yeah I think DI is cool!
+
+   such systems are bad :)
+
+   well! I take that back, they aren't bad, we're just not good at writing them yet
+   as a field
+
+   yeah yeah yeah
+** 
+   I feel like I'm that  character Samara in this Harry Potter fanfiction I'm reading
+   OC!!!
+   she is from Beauxbatons... (sp?)
+   this fanfiction has Hermione in Beauxbatons
+
+   anyway
+
+   she is mute and communicates with her magic slate, which she taps with her wand to write words
+
+   yes hers is faster...
+
+   yessssssssssss
+
+   done!
+
+   there are always articles about it, everyone (for small values of everyone) loves it
+
+   brutal
+** boopy visits
+* suggested intro from boopy
+** Introduction
+Here's a high level intro
+we'll go into each of these in more detail
+
+TSS Intregation is 3 distinct Python Libraries:
+*** integration.lib (utilities)  
+  - artifact deployment, managing the file system,
+    async complexities, etc
+*** integration.hfmd, integration.tpe, etc.
+  - python functions that bring up elements
+    of the 2 Sigma trading system in a convenient,
+    legible, and easy to use way.
+  - the heart and soul of TSS Integration!
+*** integration.tests 
+  - portable, comprehensive tests using the
+    functions written in the integration.* modules. 
