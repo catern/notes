@@ -1,0 +1,9 @@
+digraph {
+        graph [ size = "13,13!" ];
+        X -> Tickerplant_msgbox [label=" msgbox"];
+        Tickerplant_msgbox [label="Tickerplant[Msgbox]"];
+        Y -> Tickerplant_mqueue [label=" mqueue"];
+        Tickerplant_mqueue [label="Tickerplant[Mqueue]"];
+        Z -> Tickerplant_jtmqueue [label=" jtmqueue"];
+        Tickerplant_jtmqueue [label="Tickerplant[Jtmqueue]"];
+}

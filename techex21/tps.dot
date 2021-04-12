@@ -1,0 +1,7 @@
+digraph {
+        graph [ size = "5,5!" ];
+        Database [label="Database\n(SQLite)"];
+        TPS -> Database [label=" file"];
+        TPS -> Posdelta [label=" iqueue"];
+        Client -> TPS [label=" TCP socket"];
+}

@@ -1,0 +1,6 @@
+digraph {
+        graph [ size = "4,4!" ];
+        F1 -> G;
+        F1 [label="F"];
+        F2 [label="F"];
+}

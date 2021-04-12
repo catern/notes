@@ -1,0 +1,5 @@
+digraph {
+        graph [ size = "5,5!" ];
+        E -> D [label="HTTP2"];
+        D[label="D speaking HTTP2"];
+}

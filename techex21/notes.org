@@ -171,11 +171,12 @@
 
 ** Who is this guy?
 Spencer Baugh
-Modern Infrastructure for Trading Systems (MITS)
-Two Sigma Securities (TSS)
+Modern Infrastructure for Trading Systems (MITS) [[./mitts.jpg]]
+Two Sigma Securities (TSS) [[./hihat.jpg]]
 
 Talk is about:
 Testing in TSS with the "TSS Integration" library
+[[./logo.jpg]]
 
 1. Brief history of TSS Integration
 2. Philosophical discussion of testing
@@ -324,7 +325,7 @@ A type system!
 
 A basic one, like C++/Java/Python already have
 
-No fancy dependent types, nothing unusual
+No fancy stuff, nothing unusual
 
 Quick overview of Python type annotations:
 #+begin_src python
@@ -340,6 +341,7 @@ https://mypy.readthedocs.io/en/stable/cheat_sheet_py3.html
 A basic example problem:
 
 Service A connects to services B and C.
+[[./example1.png]]
 
 Immediate consequences:
 - B and C need to start before A
@@ -378,8 +380,8 @@ You need instances of =B= and =C= first,
 from =start_b= and =start_c=!
 
 TSS Integration, for each service:
-- Defines a class A
-- Puts all the info to use the service into A
+- Defines a class A,
+  which exposes URLs/paths/etc for connecting to the service
 - Defines a function to start the service,
   which returns A,
   and takes dependencies as arguments
@@ -390,7 +392,8 @@ Service D:
 Service E:
 - Depends on D
 - Requires that D speak HTTP2
-
+[[./example2.png]]
+
 #+begin_src python
 def start_e(d: D[HTTP2Url]) -> E:
     ...
@@ -398,10 +401,8 @@ def start_e(d: D[HTTP2Url]) -> E:
     ...
     return E(...)
 
-
 def main(d: D[HTTPUrl]) -> E:
-    # type error!
-    return start_e(d)
+    return start_e(d) # type error!
 #+end_src
 
 The type argument to the =D= class
@@ -413,6 +414,7 @@ HFMD tickerplant clients can publish over
 - msgbox
 - mqueue
 - jtmqueue
+[[./tickerplant.png]]
 Types ensure services get the transport they expect
 
 *** Create different envs by passing different args
@@ -421,7 +423,8 @@ Service F:
 - Behaves differently if service G is provided
 Service G:
 - Just some random normal other service
-
+[[./example3.png]]
+
 #+begin_src python
 def start_f(g: Optional[G]) -> F:
     ...
@@ -451,7 +454,6 @@ In TSS Integration,
 - equities/futures/options
 All build different environments,
 out of the same components (functions and types).
-
 
 *** Interact with the system using the REPL/debugger
 A minor nice feature...
@@ -470,17 +472,16 @@ or manipulating it in an ad-hoc way.
 
 So that's how TSS Integration provides
 *the ability to run the trading system*.
-
 
 ** In-depth example of a test with TSS Integration
 
-TPS, the Two sigma Position Service.
+TPS: Two sigma Position Service.
 
-- It's an order gateway (essentially)
-- Receives orders from the outside world
+- Receives orders from the outside world over TCP
 - Validates and possibly rejects those orders
 - Updates another service, =posdelta=, with fills
-
+- Stores data in a SQLite database
+[[./tps.png]]
 
 Why TPS?
 
@@ -523,6 +524,7 @@ async def start_tps(
 ) -> TPS:
   ...
 #+end_src
+[[./tps.png]]
 
 #+begin_src python
   nursery: trio.Nursery,
@@ -569,7 +571,7 @@ https://github.com/catern/rsyscall
 #+end_src
 
 - The first TPS-specific argument
-- Used by TPS to listen for incoming connections
+- Used by TPS to listen for incoming TCP connections
 - Standard Unix socket programming
 
 #+begin_src python
@@ -593,7 +595,6 @@ https://github.com/catern/rsyscall
 #+end_src
 
 - Used by TPS as a backend and persistence mechanism
-- A SQLite DB will work fine for a test
 - =Database.make= creates the DB with the TPS schema
 - =make_location= returns a temporary directory,
   for databases and any other state
@@ -623,7 +624,7 @@ async def start_posdelta(
 ) -> Posdelta:
 #+end_src
 
-- Will share =trio.Nursery= and =rsyscall.Thread= with TPS
+- Use the same =trio.Nursery=, =rsyscall.Thread=
 - =workdir= is a private directory to store state
 - Make =workdir= under the dir from =make_location=
 
@@ -665,9 +666,9 @@ The TPS object contains the address for TPS.
 #+begin_src python
     async def asyncSetUp(self) -> None:
         self.tps = ...
-        self.client = integration.tps.Client(
-            await HTTPClient.connect(
-                self.thread, self.tps.sockaddr))
+        self.client =
+            await integration.tps.Client.connect(
+                self.thread, self.tps.sockaddr)
 #+end_src
 
 Just send an order and fill, for some instrument
@@ -675,7 +676,8 @@ Just send an order and fill, for some instrument
 #+begin_src python
     async def test(self) -> None:
         order = await self.client.new_order(
-            'buy', 100, self.tps.static_data.instruments[0],
+            'buy', 100,
+            self.tps.static_data.instruments[0],
             price=Decimal('50.0'))
         await order.fill(100, Decimal('50.0'))
 #+end_src
@@ -692,11 +694,11 @@ By making it easy to run the system,
 we've improved our ability to test.
 
 Summary list of features (for later review):
-- type-safe composition and configuration of services without limits
+- type-safe composition and configuration of services, without limits
 - safe for prod
 - runs anywhere, including pre-push, homeservers, or colo
 - requires no special privileges
-- doesn't depend on any outside services, totally self-contained
+- doesn't depend on any outside services
 - can be used interactively from a REPL or debugger
 - optimised process startup to avoid the usual monorepo high per-process startup delays
 - distributed execution, can run across multiple hosts
@@ -750,6 +752,7 @@ async def start_fooserv(
     nursery.start_soon(child_process.check)
     return Fooserv()
 #+end_src
+
 * planning
 ** DONE history section
    make smaller?
