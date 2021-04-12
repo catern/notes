@@ -167,6 +167,7 @@
 #+end_src
 
 * TSS Integration talk
+[[./logo.jpg]]
 
 ** Who is this guy?
 Spencer Baugh
