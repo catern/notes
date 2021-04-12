@@ -206,6 +206,12 @@ Scale:
 - Used in production for 6 services
 - Always growing!
 
+Develops mainly in two ways:
+- A cross-team change is tested with TSS Integration,
+  which expands to cover more services.
+- An individual team wants to write new tests,
+  so they improve the existing support for their services.
+
 But what does it actually do?
 
 ** Philosophical discussion
@@ -719,13 +725,13 @@ More significant long-term development:
 
 How to get started?
 
-Add your services to TSS Integration,
-or write your own library
+To add your services to TSS Integration,
+or to write your own library:
 
-- First, understand your service dependencies
-- The rest is just work
-- But it's worth it!
-  And then the dependencies are forever codified.
+1. Understand your service dependencies;
+   this is the hardest step!
+2. Write it down as classes and function signatures
+3. Implement those functions (relatively easy!)
 
 Would you like to know more? Or get help starting?
 - Shortly, ask me questions
