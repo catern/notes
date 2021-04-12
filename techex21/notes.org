@@ -198,8 +198,10 @@ TSS Integration is:
 - Originally developed by MITS in TSS in 2018
 - We chose Python so that it could be widely used
 
-To give a sense of scale:
-- Supports ~100 different services, across 8 teams.
+Scale:
+- ~100 different services, across ~10 teams.
+- ~600 tests
+- Used in production for 6 services
 - Always growing!
 
 But what does it actually do?
