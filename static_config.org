@@ -113,6 +113,64 @@ In the long run,
 more information about programs must become statically visible
 if we are to create simple and correct large scale systems.
 "Statically linking" configuration is one part of that trend.
+* Criticisms :noexport:
+** slow to reconfigure things
+   because of slow rebuilds things
+   hard to do exploratory configuration for example
+
+   ok two people have raised this concern now.
+
+   from tinwhiskers:
+#+BEGIN_QUOTE
+Interesting but it seems like a roundabout way of just hard-coding your values,
+which nobody does for the obvious reason you need to recompile to change any setting.
+You don't mention the obvious disadvantages.
+The need to have access to the source code,
+knowledge of how to change the settings and recompile it excludes a large chunk of potential user base.
+Nobody wants to deal with that.
+Put a version string in your configuration files and maintain backward compatibility if necessary.
+This solution is far more onerous than the rare case of a corrupted configuration file.
+If you maintain your configuration file though the application then errors should be rare to non-existent.
+That's a much better approach than static compiling of settings in my opinion.
+#+END_QUOTE
+
+ok three people have raised this concern now.
+
+I think I should say:
+
+If you only recompile the main top-level executable, recompilation is fast;
+and if your language is interpreted, there's no recompilation needed at all.
+
+in some section i suppose
+
+I'll specifically comment about speed of changing settings.
+
+We can change settings quickly without having to coordinate two rollouts.
+(or something)
+If you only recompile the main top-level executable, recompilation is fast;
+and if your language is interpreted, there's no recompilation needed at all.
+
+Instead of carefully making sure to edit the right configuration file,
+edit the top-level executable source code;
+for an interpreted language, there's no recompilation needed,
+and even for a compiled language, recompiling only the main top-level is fast.
+
+To change configuration, we change the code for this custom executable.
+For an interpreted language, we can immediately run after a change,
+and for a compiled language, we only have to recompile the top-level executable, which is fast.
+
+
+Instead, we write code for our own custom executable
+
+** hard to get config of running process
+   why do you want to see it in serialized form?
+
+   well this is the same issue as before,
+   with, like, configuration being distant from the class.
+   when things are abstracted it's hard to see what the concrete implementation is.
+
+   since it has to be traced.
+   hm. that's a matter of debugging I guess?
 * Footnotes
 
 [fn:dynlibs]
