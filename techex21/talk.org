@@ -239,7 +239,7 @@ TSS Integration, for each service:
 
 *** You can keep track of complex values using types
 Service D:
-- Speaks either HTTP or HTTP2, but not both
+- Speaks either HTTP1 or HTTP2, but not both
 Service E:
 - Depends on D
 - Requires that D speak HTTP2
@@ -252,7 +252,7 @@ def start_e(d: D[HTTP2Url]) -> E:
     ...
     return E(...)
 
-def main(d: D[HTTPUrl]) -> E:
+def main(d: D[HTTP1Url]) -> E:
     return start_e(d) # type error!
 #+end_src
 
