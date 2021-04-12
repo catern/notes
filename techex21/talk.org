@@ -1,3 +1,15 @@
+* prep
+#+begin_src elisp
+(progn
+  (setq text-scale-mode-amount 5)
+  (text-scale-mode 5)
+  (blink-cursor-mode -1)
+  (setq left-margin-width 0)
+  ;; so left-margin-width goes into effect
+  (set-window-buffer
+    (get-buffer-window (current-buffer))
+    (current-buffer)))
+#+end_src
 
 * TSS Integration talk
 [[./logo.jpg]]

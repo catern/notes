@@ -154,17 +154,6 @@
     producing the thing we need...
 
     hmmm
-* prep
-#+begin_src elisp
-(progn
-  (setq text-scale-mode-amount 5)
-  (text-scale-mode 5)
-  (blink-cursor-mode -1)
-  (setq left-margin-width 0)
-  (set-window-buffer
-    (get-buffer-window (current-buffer))
-    (current-buffer)))
-#+end_src
 * planning
 ** DONE history section
    make smaller?
