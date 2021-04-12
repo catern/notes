@@ -731,6 +731,22 @@ Would you like to know more? Or get help starting?
 Hopefully this talk has shown you
 the importance of being able to run your system.
 
+Example: trio and rsyscall and remote execution
+#+begin_src python
+async def start_fooserv(
+    nursery: trio.Nursery,
+    thread: rsyscall.Thread,
+    workdir: Path,
+) -> Fooserv:
+    command = ts_fooserv.get_c_binary("fooserv").args(
+        "--verbose", "--do-stuff-fast",
+    )
+    child_thread = await thread.clone()
+    await child_thread.chdir(workdir)
+    child_process = await child.exec(command)
+    nursery.start_soon(child_process.check)
+    return Fooserv()
+#+end_src
 * planning
 ** DONE history section
    make smaller?
