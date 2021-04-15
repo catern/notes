@@ -12,7 +12,7 @@
 #+end_src
 
 * TSS Integration talk
-[[./logo.jpg]]
+[[./logo.png]]
 
 ** Who is this guy?
 - Spencer Baugh
@@ -21,7 +21,7 @@
 
 Talk is about:
 Testing in TSS with the "TSS Integration" library
-[[./logo.jpg]]
+[[./logo.png]]
 
 1. Brief history of TSS Integration
 2. Philosophical discussion of testing
@@ -38,7 +38,7 @@ TSS Integration is:
 - Python module name: "integration"
 - monorepo path: ts/tss/integration
 - Slack channel: #x-tss-integration
-[[./logo.jpg]]
+[[./logo.png]]
 
 - Used by TSS and TSI
 - Maintained collectively by users
