@@ -11,7 +11,7 @@
     (current-buffer)))
 #+end_src
 
-* TSS Integration talk
+* TSS Integration: To test your code, you need to run it
 [[./logo.png]]
 
 ** Who is this guy?
