@@ -5,10 +5,20 @@
   (text-scale-mode 5)
   (blink-cursor-mode -1)
   (setq left-margin-width 0)
+  ;; hide equals signs
+  (setq org-hide-emphasis-markers t)
   ;; so left-margin-width goes into effect
   (set-window-buffer
     (get-buffer-window (current-buffer))
     (current-buffer)))
+#+end_src
+** unprep
+#+begin_src elisp
+(progn
+  (setq left-margin-width 0)
+  (setq org-hide-emphasis-markers nil)
+  (kill-local-variable 'mode-line-format)
+)
 #+end_src
 
 * TSS Integration: To test your code, you need to run it
@@ -344,7 +354,7 @@ Put the principles we just discussed into practice
 
 Pretend:
 - We're writing the first tests for TPS
-  (Normally we'd use the existing =test_tps.py=)
+  (Normally we'd use the existing test_tps.py)
 - But we've already written TPS types and functions
 - Now let's set up an environment with TPS!
 
