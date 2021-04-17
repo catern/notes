@@ -1,3 +1,4 @@
+#+HTML_HEAD: <style type="text/css">pre.src {background-color: #303030; color: #ffffff;}</style>
 * prep :noexport:
 #+begin_src elisp
 (progn
