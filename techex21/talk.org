@@ -68,6 +68,9 @@ Scale:
 - ~600 tests
 - Used in production for 6 services
 - Always growing!
+
+~80000 lines migrated to ~4000 lines:
+[[./plot.png]]
 
 Improves mainly as a side effect of:
 - Cross team projects;
