@@ -578,16 +578,20 @@ TSS Intregation is 3 distinct Python Libraries:
    sure, sure
 
    need to finish this...
-** turn on video camera
+** DONE maybe turn on video camera
+   lol no the laptop is unusable
 * boopy feedback
 ** TODO MARGINS!!!!
    boopy wants me to make the text smaller so I can have bigger margins...
 * my own feedback
-** TODO try it on laptop
+** DONE try it on laptop
    the issue might be that people are watching it on their laptop,
    and my big screen is getting scaled down.
 
    i should try it on the laptop to compare...
+
+   lol okay so the laptop has too small of a screen
+   but it seems fine other than that.
 ** DONE need to set up proper website with shorturl
    on my homeserver
 
