@@ -540,4 +540,60 @@ TSS Intregation is 3 distinct Python Libraries:
   - the heart and soul of TSS Integration!
 *** integration.tests 
   - portable, comprehensive tests using the
-    functions written in the integration.* modules. 
+    functions written in the integration.* modules.
+* feedback 2 diagram
+** DONE bigger text
+   ok fine I did it
+** put the diagram on the side of the text instead of after it
+   that's not something I can easily do, so...
+** align it away from the edge
+   center the text!
+
+   okaaaaay.
+
+   sooooo
+
+   i can implement this this weekend I guess...
+
+   I'll dig into other emacs presentation modes to see what they do?
+   maybe they support this.
+
+   I don't need this anymore since the frame is always full now,
+   with windows open
+** DONE remove the equals signs
+** DONE consider deleting the text when you have the diagrams
+   like in the slides when I'm talking about the scenarios for examples
+
+   service D is this, service E is that, etc
+
+   yeah no, I want people to be able to at least *somewhat* understand when reviewing later
+** DONE hide the modeline
+** DONE add images wherever you have an excuse
+   they help a lot
+
+   ok I can do that
+
+   ok I added some more, sigh
+** TODO add line count over time graph
+   sure, sure
+
+   need to finish this...
+** turn on video camera
+* boopy feedback
+** TODO MARGINS!!!!
+   boopy wants me to make the text smaller so I can have bigger margins...
+* my own feedback
+** TODO try it on laptop
+   the issue might be that people are watching it on their laptop,
+   and my big screen is getting scaled down.
+
+   i should try it on the laptop to compare...
+** DONE need to set up proper website with shorturl
+   on my homeserver
+
+   oh actually I think it's fine as it is, just need to update it
+** TODO update website with latest talk
+** DONE maybe always have two windows open?
+   then they won't complain
+
+   yeah okay I can do this, I'm prepped for this
