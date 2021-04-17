@@ -104,7 +104,7 @@ Two Sigma systems contain:
 *The ability to run the trading system*
 
 TSS Integration:
-- Runs these services
+- Runs services
 - Connects them together
 - In arbitrary configurations
 
@@ -230,7 +230,6 @@ A problem of dependency injection...
 [[file:tweet.png]]
 
 *** Serivce dependencies, with functions
-We can express this with a function!
 #+begin_src python
 def start_a(b: B, c: C) -> A:
     "Start an instance of the A service"
@@ -261,7 +260,7 @@ TSS Integration, for each service:
   which returns A,
   and takes dependencies as arguments
 
-*** You can keep track of complex values using types
+*** Track complex configs with types
 Service D:
 - Speaks either HTTP1 or HTTP2,
   but not both
@@ -292,7 +291,7 @@ HFMD tickerplant clients can publish over
 - jtmqueue
 [[./tickerplant.png]]
 
-*** Create different envs by passing different args
+*** Make different envs with different args
 Service F:
 - Can run with or without service G
 - Behaves differently in each case
@@ -330,7 +329,7 @@ In TSS Integration,
 All build different environments,
 with the same functions and types
 
-*** Interact with the system using the REPL/debugger
+*** Interact using the REPL/debugger
 A minor nice feature...
 
 Useful for:
@@ -432,6 +431,7 @@ https://trio.readthedocs.io/en/stable/tutorial.html
 #+begin_src python
 from rsyscall import local_thread
 
+  async def asyncSetUp(self) -> None:
     self.thread = local_thread
     self.tps = await start_tps(
       ...,
@@ -596,6 +596,8 @@ Or get help starting?
 Hopefully this talk has shown you
 the importance of running your system.
 
+Slides at http://ts/tssintegration
+[[./logo.png]]
 Summary list of features:
 - type-safe composition and configuration of services, without limits
 - safe for prod
@@ -607,13 +609,9 @@ Summary list of features:
 - distributed execution, can run across multiple hosts
 - arbitrary universes, can run services from different universes together
 - monitors processes at all times so that any process exits will be detected
-- processes can be pinned to CPUs
-- doesn't leave stray processes behind
+- processes can be pinned to CPUs and customized in many other ways
+- doesn't leave stray orphan processes behind
 - easy to clean up after, everything goes in a single directory
-
-Slides at http://ts/tssintegration
-
-[[./logo.png]]
 
 Example: trio and rsyscall and remote execution
 #+begin_src python
