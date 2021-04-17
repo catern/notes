@@ -574,7 +574,7 @@ TSS Intregation is 3 distinct Python Libraries:
    ok I can do that
 
    ok I added some more, sigh
-** TODO add line count over time graph
+** DONE add line count over time graph
    sure, sure
 
    need to finish this...
@@ -596,7 +596,7 @@ TSS Intregation is 3 distinct Python Libraries:
    on my homeserver
 
    oh actually I think it's fine as it is, just need to update it
-** TODO update website with latest talk
+** DONE update website with latest talk
 ** DONE maybe always have two windows open?
    then they won't complain
 

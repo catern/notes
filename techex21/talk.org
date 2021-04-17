@@ -1,15 +1,18 @@
-* prep
+* prep :noexport:
 #+begin_src elisp
 (progn
+  (setq
+    ;; hide equals signs
+    org-hide-emphasis-markers t
+    text-scale-mode-amount 6
+    mode-line-format nil
+  )
+  (org-mode)
   (org-toggle-inline-images)
-  (setq text-scale-mode-amount 5)
-  (text-scale-mode 5)
+  (text-scale-mode 6)
   (blink-cursor-mode -1)
   (visual-line-mode 1)
-  (setq left-margin-width 0)
-  ;; hide equals signs
-  (setq org-hide-emphasis-markers t)
-  ;; so left-margin-width goes into effect
+  ;; so things go into effect
   (set-window-buffer
     (get-buffer-window (current-buffer))
     (current-buffer)))
@@ -17,9 +20,8 @@
 ** unprep
 #+begin_src elisp
 (progn
-  (visual-line-mode -1)
-  (setq left-margin-width 0)
   (setq org-hide-emphasis-markers nil)
+  (visual-line-mode -1)
   (kill-local-variable 'mode-line-format)
 )
 #+end_src
@@ -36,10 +38,12 @@ Slides at http://ts/tssintegration
 - Two Sigma Securities
   (TSS) [[./hihat.jpg]]
 
+This talk is about:
 Integration testing in TSS,
 with the "TSS Integration" library
 [[./logo.png]]
 
+Outline:
 1. Brief history of TSS Integration
 2. Philosophical discussion of testing
 3. Example of a TSS Integration test
@@ -155,7 +159,7 @@ Here's one explanation:
 
 So forget about testing for a moment.
 
-Our goal right now:
+Our goal in this section:
 *The ability to run the trading system*
 in a flexible, robust, portable way.
 
@@ -232,7 +236,7 @@ A problem of dependency injection...
 
 [[file:tweet.png]]
 
-*** Serivce dependencies, with functions
+*** Service dependencies, with functions
 #+begin_src python
 def start_a(b: B, c: C) -> A:
     "Start an instance of the A service"
@@ -601,14 +605,13 @@ the importance of running your system.
 
 Slides at http://ts/tssintegration
 [[./logo.png]]
-Summary list of features:
 - type-safe composition and configuration of services, without limits
-- safe for prod
+- safe for, and used in, prod
 - runs anywhere, including pre-push, homeservers, or colo
 - requires no special privileges
 - doesn't depend on any outside services
 - can be used interactively from a REPL or debugger
-- optimised process startup to avoid the usual monorepo high per-process startup delays
+- optimized process startup to avoid the usual monorepo high per-process startup delays
 - distributed execution, can run across multiple hosts
 - arbitrary universes, can run services from different universes together
 - monitors processes at all times so that any process exits will be detected
