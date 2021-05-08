@@ -581,8 +581,13 @@ TSS Intregation is 3 distinct Python Libraries:
 ** DONE maybe turn on video camera
    lol no the laptop is unusable
 * boopy feedback
-** TODO MARGINS!!!!
+** MARGINS!!!!
    boopy wants me to make the text smaller so I can have bigger margins...
+
+   blaaaah
+   BLAAAH
+   I think if people want it away from the edge of their screen,
+   they can do that themselves.
 * my own feedback
 ** DONE try it on laptop
    the issue might be that people are watching it on their laptop,
@@ -601,3 +606,19 @@ TSS Intregation is 3 distinct Python Libraries:
    then they won't complain
 
    yeah okay I can do this, I'm prepped for this
+* feedback again
+** DONE don't do the side-by-side thing for anything but the examples
+** TODO make more abstract diagrams for the improve support thing
+   maybe I'll just delete those building pictures, really...
+** TODO explain the diagrams on the run the trading system page
+   and make them bigger
+
+   including the question marks inside
+
+   explain: as in,
+   mention that we have many different services with confusing dependencies
+
+   aw screw it, I'll just delete those pictures too
+
+   I hate pictures!
+** DONE remove turnstile joke
