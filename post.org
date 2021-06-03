@@ -331,26 +331,26 @@ So that's how TSS Integration provides
 
 ** In-depth example of a test with TSS Integration
 
-TPS: Two sigma Position Service.
+orderd: an order entry daemon
 
-- Receives orders from the world over TCP
-- Validates and maybe rejects those orders
-- Updates the =posdelta= service with fills
-- Stores data in a SQLite database
+- Accepts or rejects orders sent over TCP
+- Updates the =positiond= service with the positions
+- Stores order data in a SQLite database
 [[./tps.png]]
 
-Why TPS?
+Why orderd as an example?
 
-- TPS has few dependencies
-- TSS Integration runs TPS in production
+- orderd has few dependencies
+- This (with a few details expunged)
+  is how we run orderd in production
 
 Our goal in this example:
 Put the theory from earlier into practice
 
 Pretend:
-- There are no other tests for TPS
-- We already have TPS types and functions
-- Now let's set up an environment with TPS!
+- There are no other tests for orderd
+- We already have orderd types and functions
+- Now let's set up an environment with orderd!
 
 We start with a =TrioTestCase=;
 an async-enabled =unittest.TestCase=,
@@ -359,10 +359,10 @@ but otherwise standard Python.
 There's nothing async in this example;
 just ignore the =async= and =await= keywords
 #+begin_src python
-class TestTPS(TrioTestCase):
+class TestOrderd(TrioTestCase):
   async def asyncSetUp(self) -> None:
-    # Start up TPS, and its deps
-    self.tps = await start_tps(...)
+    # Start up orderd and its dependencies
+    self.orderd = await start_orderd(...)
 
   async def test(self) -> None:
     # The actual test!
@@ -370,13 +370,13 @@ class TestTPS(TrioTestCase):
 #+end_src
 
 #+begin_src python
-async def start_tps(
+async def start_orderd(
   nursery: trio.Nursery,
   thread: rsyscall.Thread,
   listening_sock: FileDescriptor,
-  database: integration.tps.Database,
+  database: orderd.Database,
   posdelta: Posdelta,
-) -> TPS:
+) -> Orderd:
   ...
 #+end_src
 [[./tps.png]]
@@ -393,7 +393,7 @@ async def start_tps(
 
 #+begin_src python
   async def asyncSetUp(self) -> None:
-    self.tps = await start_tps(
+    self.orderd = await start_orderd(
       self.nursery,
       ...,
     )
@@ -414,7 +414,7 @@ from rsyscall import local_thread
 
   async def asyncSetUp(self) -> None:
     self.thread = local_thread
-    self.tps = await start_tps(
+    self.orderd = await start_orderd(
       ...,
       self.thread,
       ...,
@@ -428,8 +428,8 @@ https://github.com/catern/rsyscall
   listening_sock: FileDescriptor,
 #+end_src
 
-- The first TPS-specific argument
-- Used by TPS to listen for TCP connections
+- The first orderd-specific argument
+- Used by orderd to listen for TCP connections
 - Standard Unix socket programming
 #+begin_src python
     # make a TCP socket
@@ -441,7 +441,7 @@ https://github.com/catern/rsyscall
       await self.thread.ptr(addr))
     # and start listening
     await sock.listen(1024)
-    self.tps = await start_tps(
+    self.orderd = await start_orderd(
       ...,
       sock,
       ...,
@@ -449,7 +449,7 @@ https://github.com/catern/rsyscall
 #+end_src
 
 #+begin_src python
-  database: integration.tps.Database,
+  database: orderd.Database,
 #+end_src
 
 - Used to store persistent state
@@ -457,10 +457,10 @@ https://github.com/catern/rsyscall
 #+begin_src python
     # Make a temporary directory
     self.testdir = make_testdir()
-    self.tps = await start_tps(
+    self.orderd = await start_orderd(
       ...,
-      # Initialize it with the TPS schema
-      await integration.tps.Database.make(
+      # Initialize it with the orderd schema
+      await orderd.Database.make(
         # Make it locally with self.thread
         self.thread, self.testdir/"db"),
       ...,
@@ -468,32 +468,32 @@ https://github.com/catern/rsyscall
 #+end_src
 
 #+begin_src python
-  posdelta: Posdelta,
+  positiond: Positiond,
 #+end_src
 A service sending out position updates
 
 #+begin_src python
-async def start_posdelta(
+async def start_positiond(
   nursery: trio.Nursery,
   thread: rsyscall.Thread,
   workdir: Path,
-) -> Posdelta: ...
+) -> Positiond: ...
 #+end_src
 
 #+begin_src python
-    self.tps = await start_tps(
+    self.orderd = await start_orderd(
       ...,
-      await start_posdelta(
-        # Same as TPS
+      await start_positiond(
+        # Same as orderd
         self.nursery, self.thread,
-        (self.testdir/"posdelta").mkdir()),
+        (self.testdir/"positiond").mkdir()),
     )
 #+end_src
 
 That's everything!
 
 #+begin_src python
-class TestTPS(TrioTestCase):
+class TestOrderd(TrioTestCase):
   async def asyncSetUp(self) -> None:
     self.testdir = make_testdir()
     self.thread = local_thread
@@ -503,25 +503,25 @@ class TestTPS(TrioTestCase):
     await sock.bind(
       await self.thread.ptr(addr))
     await sock.listen(1024)
-    self.tps = await start_tps(
+    self.orderd = await start_orderd(
       self.nursery, self.thread,
       sock,
       await Database.make(
         self.thread, self.testdir/"db"),
-      await start_posdelta(
+      await start_positiond(
         self.nursery, self.thread,
-        (self.testdir/"posdelta").mkdir()),
+        (self.testdir/"positiond").mkdir()),
     )
 #+end_src
 
-Now we start the Python client for TPS
+Now we start the Python client for orderd
 
 #+begin_src python
   async def asyncSetUp(self) -> None:
-    self.tps = ...
+    self.orderd = ...
     self.client =
-      await integration.tps.Client.connect(
-        self.thread, self.tps.sockaddr)
+      await orderd.Client.connect(
+        self.thread, self.orderd.sockaddr)
 #+end_src
 
 Just send an order and fill
@@ -530,7 +530,7 @@ Just send an order and fill
     async def test(self) -> None:
         order = await self.client.new_order(
             'buy', 100,
-            self.tps.static_data.instruments[0],
+            self.orderd.static_data.instruments[0],
             price=Decimal('50.0'))
         await order.fill(100, Decimal('50.0'))
 #+end_src
@@ -538,7 +538,7 @@ Just send an order and fill
 - This is a complete test
 - All the services are checking invariants
 - Violations cause exceptions
-- For example: If TPS errors or crashes,
+- For example: If orderd errors or crashes,
   we'll get an exception
 - Set up more services for more coverage,
   but the test method stays the same
