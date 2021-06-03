@@ -1,0 +1,121 @@
+ok so we want the big example section still,
+with the concrete code... hmmm....
+
+we'll call it... toplevel?
+
+yeah I still like the name toplevel
+
+so the title can be something like...
+
+Toplevel: A library for running
+
+
+maybe I should say...
+
+a library and style?
+
+a style... for running distributed systems programmatically
+
+coding standards?
+an approach?
+
+a way?
+a path?
+a paradigm?
+
+paradigm is a bit pretentious
+
+also the existing paper
+
+a pattern???
+I like pattern
+a pattern for deploying distributed system programmatically
+
+well!
+I really am talking about the library of functions here.
+
+I've already explained the pattern
+
+I'm just talking about the library
+
+i'm worried about my explanation style here...
+
+maybe I should have the concrete examples to explain the theory,
+instead of going through the dependencies one by one?
+
+MAYBE I should just unite them?
+
+Should I just extend the distributed systems article!??
+
+Yeah! that actually would be good.
+
+
+hmm it does make the article really long though...
+
+maybe I should just cite it quickly, with the core point of,
+expressing dependencies as arguments?
+not the further examples of type parametrization and multiple environments?
+yeah yeah that seems good.
+
+so I can just reproduce that explanation
+
+
+okay and so, we can show that we're looking at a test of orderd,
+because it's completely self-contained; (a test is traditionally completely self-contained)
+we don't have to posit any external hosts or nodes that we'll run orderd on,
+we just do it totally self contained.
+
+yeah,
+"we could substitute more sophisticated values for thread and nursery here,
+to get more sophisticated behaviors".
+
+
+okay so:
+- ???
+- dependencies as arguments, link to "type systems for deploying distributed systems"
+- ???
+- "we'll look at a test because it's self-contained and a clean slate;
+   we don't have to assume we have other multiple hosts that we'll use,
+   and we don't have to worry about using persistent storage for data storage."
+- example with "orderd"
+
+So I guess I won't start by talking about tests;
+we'll introduce tests later on as an example.
+
+We'll start with a link to the distributed systems thing.
+And also run your system. and code as config...
+
+hmm.
+
+or maybe not? we'll explain it more anecdotally;
+at my job we have a library,
+built along the lines blah blah,
+
+or, wait. I want to say it concisely.
+* post
+At $DAYJOB we have 
+a sophisticated collection of libraries for running components in our distributed system,
+collectively called "integration libraries".
+I describe them here as a constructive proof for
+the theory I've described elsewhere. (link each word)
+
+- We use it to run our system, which is very important.
+- A brief summary of the theory. [blah blah dependencies as arguments]
+
+- The libraries consists of a collection of functions
+
+* thoughts
+okay so...
+can we just say that we need to run our distributed system?
+
+I mean, do we need to explain why we can't use other things?
+maybe we don't need to do that, hm.
+
+yeah I don't think we need this justification section,
+which explains why we don't use kubernetes etc
+(that can be... underdefined... and let people draw their own conclusions)
+
+oho!
+I can link "constructive proof" in the introduction,
+to my new constructive proof article!
+
