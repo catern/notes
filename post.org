@@ -341,8 +341,7 @@ orderd: an order entry daemon
 Why orderd as an example?
 
 - orderd has few dependencies
-- This (with a few details expunged)
-  is how we run orderd in production
+- It's a real daemon, with a few details removed
 
 Our goal in this example:
 Put the theory from earlier into practice
@@ -375,7 +374,7 @@ async def start_orderd(
   thread: rsyscall.Thread,
   listening_sock: FileDescriptor,
   database: orderd.Database,
-  posdelta: Posdelta,
+  positiond: Positiond,
 ) -> Orderd:
   ...
 #+end_src
