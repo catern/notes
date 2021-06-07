@@ -96,7 +96,7 @@ or, wait. I want to say it concisely.
 At $DAYJOB we have 
 a sophisticated collection of libraries for running components in our distributed system,
 collectively called "integration libraries".
-I describe them here as a constructive proof for
+I describe them here as a constructive proof of (link constructive proof post)
 the theory I've described elsewhere. (link each word)
 
 - We use it to run our system, which is very important.
@@ -119,3 +119,418 @@ oho!
 I can link "constructive proof" in the introduction,
 to my new constructive proof article!
 
+so no discussion of the justification versus other systems;
+we'll just say, it's for running our system,
+citing the "run your system" post.
+
+well, kai says we should get to the point quickly.
+
+I guess we can have one sentence about running the system...
+at the start?
+yeah and include a link to usertests too.
+
+the key important prep is that dependencies are arguments;
+we'll inline just that,
+then we'll go into the actual example.
+
+right so...
+* 
+At $DAYJOB we have 
+a sophisticated collection of libraries for running components in our distributed system,
+collectively called "integration libraries".
+I describe them here as a constructive proof of (link constructive proof post)
+the theory I've described elsewhere. (link each word)
+
+Together, this collection of libraries lets us run our system, (link)
+both for production and for testing. (link)
+
+The integration libraries use regular programming features
+to manage the complexity of
+deploying, running and monitoring components in a distributed system;
+in particular, they rely heavily on the static type system of Python 3.
+A key part of this is that regular function arguments
+are used to express dependencies between components;
+for each component, there's a function which takes that component's dependencies as arguments,
+and starts that component up,
+returning a value that can be passed as an argument (a dependency) for later components.
+This is explained more fully elsewhere. (link)
+
+We'll see this in action with an example.
+** orderd: an order entry daemon
+- Accepts or rejects orders sent over TCP
+- Updates the =positiond= service with the positions
+- Stores order data in a SQLite database
+
+=orderd= is a real daemon, with a few details removed.
+We're looking at =orderd= specifically
+because it has only the three dependencies we've already mentioned.
+
+For our example, we'll start up =orderd=
+and its dependencies (just =positiond=) for a test,
+using functions from the integration libraries to run each service.
+
+Note that =orderd= itself is not necessarily written in Python;
+the =orderd= integration library just gives us a Python API for running it;
+the same applies for =orderd='s dependencies.
+
+First some boilerplate for the test:
+#+begin_src python
+from orderd import start_orderd
+
+class TestOrderd(unittest.TestCase):
+  def setUp(self) -> None:
+    # TODO start up orderd and its dependencies
+    self.orderd = start_orderd(...)
+
+  def test(self) -> None:
+    self.assertTrue("Do test stuff")
+#+end_src
+
+To write =setUp=,
+we'll proceed by looking at the signature of the =start_orderd= function,
+provided by the =orderd= integration library.
+
+#+begin_src python
+# in the "orderd" module
+async def start_orderd(
+  nursery: trio.Nursery,
+  thread: rsyscall.Thread,
+  positiond: positiond.Positiond,
+  listening_sock: rsyscall.FileDescriptor,
+  database: orderd.Database,
+) -> Orderd:
+#+end_src
+
+We'll look at =start_orderd= line by line,
+creating each argument individually,
+and at the end we'll call =start_orderd= and have a running instance of =orderd=.
+
+The first three lines of the function signature 
+(up to and including =thread: rsyscall.Thread,=)
+are essentially common to all service starting functions.
+The last four lines 
+(starting with =positiond: Positiond,=)
+are specific to =orderd=.
+** async
+#+begin_src python
+async def start_orderd(
+#+end_src
+
+=start_orderd= is an async function.
+In Python, this simply means that it can run in parallel with other functions,
+which allows us to start services up in parallel,
+using Python-specific techniques which are mostly irrelevant
+and which we won't show in this example.
+Other than that, it's a completely normal function,
+which is called with =await start_orderd(...)= from any other async function,
+and which blocks execution until it's returned.
+
+Since =start_orderd= is async, we need to run it from an async runner.
+We'll use the open source library =trio= for that,
+which means we'll need to tweak our boilerplate slightly to use =TrioTestCase=.
+
+#+begin_src python
+from trio_unittest import TrioTestCase
+
+class TestOrderd(TrioTestCase):
+  async def asyncSetUp(self) -> None:
+    self.orderd = await start_orderd(...)
+#+end_src
+
+The fact that =start_orderd= is async is mostly irrelevant,
+and you can completely ignore the "async" and "await" annotations used in these examples.
+Nothing asynchronous is happening in these examples,
+and "await foo()" will block until foo is done executing,
+just like a normal function call.
+** nursery
+#+begin_src python
+  nursery: trio.Nursery,
+#+end_src
+
+=trio.Nursery= is a capability,
+defined by the open source =trio= library,
+which provides the ability to start up functions in the background.
+We pass it in to =start_orderd=
+so that =start_orderd= can start a function in the background
+to monitor the running =orderd= process.
+If the =orderd= process exits, the monitoring function will throw,
+and the resulting exception will be propagated to the =trio.Nursery=,
+which will deal with it in some way specific to how the =trio.Nursery= was produced.
+
+In this case, we'll use =self.nursery= as provided by =TrioTestCase=,
+which turns any failure in a background task into a failure of the whole test.
+
+#+begin_src python
+  async def asyncSetUp(self) -> None:
+    # self.nursery provided by TrioTestCase
+    self.orderd = await start_orderd(
+      self.nursery,
+      ...,
+    )
+#+end_src
+** thread
+#+begin_src python
+  thread: rsyscall.Thread,
+#+end_src
+
+=rsyscall.Thread= is another capability,
+defined by the open source =rsyscall= library,
+which provides the ability to run system calls, including running subprocesses.
+We pass it in to =start_orderd=
+so that =start_orderd= can start the =orderd= subprocess,
+as well as perform other operations to prepare the environment for =orderd=.
+An =rsyscall.Thread= may operate on a local or remote host,
+or inside a container or VM, or on other kinds of nodes,
+depending on how the =rsyscall.Thread= was produced,
+but it provides a completely common interface regardless of where it runs.
+
+In this case, we'll use =local_thread= imported from =rsyscall=
+and assigned to =self.thread=;
+=local_thread= runs on the same thread as the Python interpreter
+ - that is, on localhost.
+
+#+begin_src python
+from rsyscall import local_thread
+
+  async def asyncSetUp(self) -> None:
+    self.thread = local_thread
+    self.orderd = await start_orderd(
+      ..., self.thread, ...,
+    )
+#+end_src
+** positiond
+#+begin_src python
+  positiond: Positiond,
+#+end_src
+
+This is the first =orderd=-specific argument.
+
+=positiond= is a service which =orderd= updates with information about its position.
+All the information required to connect to and use =positiond=
+is contained in the =Positiond= class.
+
+Since =positiond= is its own service, we need to use =start_positiond= to start it.
+
+#+begin_src python
+async def start_positiond(
+  nursery: trio.Nursery,
+  thread: rsyscall.Thread,
+  workdir: rsyscall.Path,
+) -> Positiond: ...
+#+end_src
+
+The first two arguments are shared with =orderd=.
+The third argument, =workdir=, is unique to positiond.
+=workdir= is a path in the filesystem that =positiond= will use;
+in this case, =positiond= will use it
+to store shared memory communication mechanisms and persistent data.
+
+We'll pass a path in a temporary directory in this example.
+#+begin_src python
+    # Make a temporary directory
+    self.tmpdir = await self.thread.mkdtemp()
+    self.orderd = await start_orderd(
+      ...,
+      await start_positiond(self.nursery, self.thread, self.tmpdir/"positiond"),
+      ...,
+    )
+#+end_src
+** database
+#+begin_src python
+  database: orderd.Database,
+#+end_src
+
+This is a database with the orderd schema - implemented with SQLite, in this case.
+
+#+begin_src python
+    self.orderd = await start_orderd(
+      ...,
+      await orderd.Database.make(self.thread, self.tmpdir/"db"),
+      ...,
+    )
+#+end_src
+** listening_sock
+#+begin_src python
+  listening_sock: FileDescriptor,
+#+end_src
+
+This is a listening socket,
+passed down to =orderd= through file descriptor inheritance,
+and used to listen for TCP connections.
+
+This is standard Unix socket programming, so we won't go into this in depth;
+although note that we create this with =self.thread=,
+so that it it's on the same host as =orderd=.
+
+#+begin_src python
+  async def asyncSetUp(self) -> None:
+    # Make a TCP socket...
+    sock = await self.thread.socket(AF.INET, SOCK.STREAM)
+    # ...bind to a random port on localhost...
+    await sock.bind(await self.thread.ptr(SockaddrIn(0, "127.0.0.1")))
+    # ...and start listening.
+    await sock.listen(1024)
+    self.orderd = await start_orderd(
+      ..., sock, ...,
+    )
+#+end_src
+
+** return type
+#+begin_src python
+) -> Orderd:
+#+end_src
+
+Like all good integration libraries,
+=start_orderd= returns an =Orderd= class
+which contains all the information required to connect to =Orderd=,
+such as an address and port, a shared memory segment, or a path in the filesystem.
+
+=start_orderd=, again like all good integration libraries,
+will only return when the =orderd= communication mechanisms have been fully created,
+and therefore the =Orderd= class can be [[http://0pointer.de/blog/projects/socket-activation.html][immediately used to connect]] to =orderd=.
+
+** full example
+Here's the full, working example:
+#+begin_src python
+class TestOrderd(TrioTestCase):
+  async def asyncSetUp(self) -> None:
+    # self.nursery provided by TrioTestCase
+    self.thread = local_thread
+    self.tmpdir = await self.thread.mkdtemp()
+    sock = await self.thread.socket(AF.INET, SOCK.STREAM)
+    await sock.bind(await self.thread.ptr(SockaddrIn(0, "127.0.0.1")))
+    await sock.listen(1024)
+    self.orderd = await start_orderd(
+      self.nursery, self.thread, 
+      await start_positiond(self.nursery, self.thread, self.tmpdir/"positiond")
+      await Database.make(self.thread, self.tmpdir/"db"),
+      sock,
+    )
+#+end_src
+
+Then we can proceed to test along the lines of usertests.html. (link)
+
+** development process
+# we should mention this at the start maybe?
+
+each team maintains their own integration library for their components.
+** concrete example of start_fooserv
+hmm I'll maybe talk about the package manager integration
+
+I'll explain it a bit more like the Nix stuff...
+I'll say get_package or something...
+Yeah get_package is best...
+
+and maybe I won't say get_c_binary?
+since that's not right...
+
+oh maybe I should give a Nix example?
+that way it's completely open source actually.
+And I'll just mention we use a similar API for an internal proprietary package manager.
+
+right cool good...
+the example with Nix and regular setup.py will be more open source and good.
+
+hmm on the other hand it's not real...
+
+well it is real... it's just that... the store is yet another argument,
+which is a hassle.
+
+okay let's just try the nixdeps example for now.
+with verisimilitude.
+
+hmm.
+
+ohhhh the reason I had Nixdep in the rsyscall library is for Path.
+
+except, now Path is pure data.
+
+so let's remodel it to have it mostly outside rsyscall...
+
+*** example
+The exampled module:
+#+begin_src python
+import rsyscall_nix as nix
+import exampled._nixdep
+
+async def start_exampled(
+    nursery: trio.Nursery,
+    thread: rsyscall.Thread,
+    workdir: rsyscall.Path,
+) -> Exampled:
+    command = (await nix.deploy(thread, exampled._nixdep.closure)).bin('exampled').args(
+        "--verbose", "--do-stuff-fast",
+    )
+    child_thread = await thread.clone()
+    await child_thread.chdir(workdir)
+    child_process = await child_thread.exec(command)
+    nursery.start_soon(child_process.check)
+    return Exampled()
+#+end_src
+** versions?
+versioning is controlled by which version of the integration library we use.
+
+(I mean, that's the ideal, anyway...)
+(actually that's true-ish since lnc_library works that way)
+(but, we'll just omit any mention of versioning I think)
+** misc initial draft
+Now we need to run start_orderd
+
+The integration libraries are all async Python 3.
+To use them in a test, we need to pick an async library;
+we'll pick =trio=.
+an async-enabled =unittest.TestCase=,
+but otherwise standard Python.
+
+#+begin_src python
+class TestOrderd(TrioTestCase):
+  async def asyncSetUp(self) -> None:
+    # Start up orderd and its dependencies
+    self.orderd = await start_orderd(...)
+
+  async def test(self) -> None:
+    # The actual test!
+    self.assertTrue("Do test stuff")
+#+end_src
+
+Here's the full, working example:
+#+begin_src python
+class TestOrderd(TrioTestCase):
+  async def asyncSetUp(self) -> None:
+    self.testdir = await make_testdir(self.thread)
+    sock = await self.thread.socket(AF.INET, SOCK.STREAM)
+    await sock.bind(await self.thread.ptr(SockaddrIn(0, "127.0.0.1")))
+    await sock.listen(1024)
+    self.orderd = await start_orderd(
+      self.nursery, self.thread, 
+      sock,
+      await Database.make(self.thread, self.testdir/"db"),
+      await start_positiond(self.nursery, self.thread, (self.testdir/"positiond").mkdir()),
+    )
+#+end_src
+
+We'll start at the bottom and work our way up.
+
+* thoughts
+Should I justify writing a test?
+
+- "we'll look at a test because it's self-contained and a clean slate;
+   we don't have to assume we have other multiple hosts that we'll use,
+   and we don't have to worry about using persistent storage for data storage."
+
+but maybe not?
+
+well, I don't have to justify it if I make a real example of running it elsewhere after that.
+
+eh it's good enough
+
+* TPS redesign
+  hey maybe I could merge the iqueue and the database?
+
+  what I could do, maybe...
+  is put the JSON after the delta message in the iqueue.
+
+  I'm guessing posdelta won't mind that...
+
+  just, that would be nice because,
+  that would get rid of one of the stateful arguments
