@@ -312,19 +312,19 @@ Each team maintains an integration library for their components, but not their d
 By using multiple such libraries together, one can [[http://catern.com/run.html][run the full system]],
 for production or for [[http://catern.com/usertests.html][testing the system against its users]].
 
-The integration libraries use regular programming features
-to manage the complexity of
-deploying, running and monitoring services in a distributed system.
-In particular, they [[http://catern.com/progsys.html][rely heavily on the static type system]] of Python 3,
-and [[http://catern.com/config.html][express "configuration" with regular code]].
-A key part of this is that regular function arguments
-are used to express dependencies between services;
+The integration libraries
+[[http://catern.com/progsys.html][use Python 3's static type system to handle distributed system issues]]
+like service discovery and startup ordering;
+services are [[http://catern.com/config.html]["configured" by passing arguments, in normal code]].
+A key part of this is that
+[[http://catern.com/progsys.html][regular function arguments are used to express dependencies between services]];
 for each service, there's a function which takes that service's dependencies as arguments,
 and starts that service up,
 returning a value that can be passed as an argument (a dependency) for later services.
 These functions directly run each service as a subprocess,
-[[http://catern.com/supervisors.html][rather than delegating to a process supervisor or orchestrator service]].
-Functionality is shared through [[http://catern.com/services.html][libraries rather than services]],
+[[http://catern.com/supervisors.html][rather than delegating to a process supervisor service]].
+Functionality is shared
+[[http://catern.com/services.html][through libraries rather than by delegating to orchestration services]],
 making the integration libraries completely self-contained.
 
 We'll see this in action with an example.
@@ -580,7 +580,7 @@ class TestOrderd(TrioTestCase):
     )
 #+end_src
 
-Then we can proceed to test along the lines of http://catern.com/usertests.html.
+Then we can proceed to [[http://catern.com/usertests.html][test by running user code]].
 
 ** concrete example of start_fooserv
 hmm I'll maybe talk about the package manager integration
@@ -702,6 +702,7 @@ versioning is controlled by which version of the integration library we use.
 (I mean, that's the ideal, anyway...)
 (actually that's true-ish since lnc_library works that way)
 (but, we'll just omit any mention of versioning I think)
+(we'll see what test readers think)
 ** misc initial draft
 Now we need to run start_orderd
 
